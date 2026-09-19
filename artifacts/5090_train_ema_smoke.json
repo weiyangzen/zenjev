@@ -1,45 +1,45 @@
 {
   "pass": true,
   "gpu": "NVIDIA GeForce RTX 5090 D",
-  "base_load_seconds": 2.7272408821154386,
+  "base_load_seconds": 2.7525563561357558,
   "steps": 2,
   "losses": [
-    0.027349375188350677,
-    0.027112610638141632
+    0.027402007952332497,
+    0.027164822444319725
   ],
   "model_generation": 3,
   "ema_updates": 2,
   "inference_calls": 4,
   "inference_observations": [
     {
-      "seconds": 0.6740457001142204,
+      "seconds": 0.6656210769433528,
       "generation": 1,
       "ema_step": 0
     },
     {
-      "seconds": 0.22031723614782095,
+      "seconds": 0.2208171661477536,
       "generation": 2,
       "ema_step": 1
     },
     {
-      "seconds": 0.01848217099905014,
+      "seconds": 0.018572784960269928,
       "generation": 3,
       "ema_step": 2
     },
     {
-      "seconds": 0.015793611062690616,
+      "seconds": 0.016029685037210584,
       "generation": 3,
       "ema_step": 2
     }
   ],
-  "inference_p50_seconds": 0.22031723614782095,
-  "inference_p95_seconds": 0.22031723614782095,
-  "inference_throughput_per_second": 4.307380169567028,
-  "training_seconds": 0.8416574571747333,
-  "training_steps_per_second": 2.3762636247691296,
-  "nvidia_smi_temperature_power": "58, 91.75 W",
+  "inference_p50_seconds": 0.2208171661477536,
+  "inference_p95_seconds": 0.2208171661477536,
+  "inference_throughput_per_second": 4.342913340482566,
+  "training_seconds": 0.8352975030429661,
+  "training_steps_per_second": 2.3943564930028574,
+  "nvidia_smi_temperature_power": "47, 85.22 W",
   "errors": [],
-  "peak_vram_bytes": 2573522432,
+  "peak_vram_bytes": 2573521408,
   "result": {
     "tech_stack_2026": [
       {
