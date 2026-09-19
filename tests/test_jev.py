@@ -27,6 +27,7 @@ def test_config_digest_and_required_source(tmp_path):
 
 
 def test_distill_records_provenance(tmp_path):
+    (tmp_path / "in.txt").write_text("Python is a technology.", encoding="utf-8")
     value = cfg(tmp_path)
     class FakeTeacher:
         def label(self, document):
@@ -50,4 +51,3 @@ def test_runtime_publishes_and_infers():
     runtime = JevRuntime(value, infer=lambda model, text: {"model": model, "text": text})
     runtime.publish("adapter")
     assert runtime.infer("x")["model"] == "adapter"
-
