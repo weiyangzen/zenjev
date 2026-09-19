@@ -13,10 +13,10 @@
     "python3 scripts/validate_blueprint.py --check",
     "python3 scripts/smoke.py",
     "python3 -m compileall -q jev scripts",
-    ".venv/bin/python scripts/validate_5090.py",
-    "GLiNER2 local snapshot inference smoke (artifacts/5090_model_smoke.json)",
-    "JEV_MODEL_PATH=/home/sansha/jev-model-base .venv/bin/python scripts/smoke_5090.py --output artifacts/5090_train_ema_smoke.json",
+    ".venv/bin/python scripts/validate_nvidia_gpu.py",
+    "GLiNER2 local snapshot inference smoke (artifacts/nvidia_gpu_model_smoke.json)",
+    "JEV_MODEL_PATH=/home/sansha/jev-model-base .venv/bin/python scripts/smoke_nvidia_gpu.py --output artifacts/nvidia_gpu_train_ema_smoke.json",
     "official GLiNER2 total_loss forward/backward smoke",
-    "ContinuousLoRATrainer default official supervised loss smoke (artifacts/5090_official_train_smoke.json)"
+    "ContinuousLoRATrainer default official supervised loss smoke (artifacts/nvidia_gpu_official_train_smoke.json)"
   ]
 }

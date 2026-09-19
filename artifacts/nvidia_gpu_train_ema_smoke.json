@@ -1,6 +1,6 @@
 {
   "pass": true,
-  "gpu": "NVIDIA GeForce RTX 5090 D",
+  "gpu": "NVIDIA GPU",
   "base_load_seconds": 2.7525563561357558,
   "steps": 2,
   "losses": [

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a real GLiNER2/LoRA/EMA snapshot smoke on an RTX 5090.
+"""Run a real GLiNER2/LoRA/EMA snapshot smoke on an NVIDIA GPU.
 
 This is an integration gate, not a quality-training recipe: the step function
 uses an adapter regularizer so the optimizer, EMA, publication and concurrent
@@ -24,7 +24,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/example.yaml")
     parser.add_argument("--model-path", default=None)
-    parser.add_argument("--output", default="artifacts/5090_train_ema_smoke.json")
+    parser.add_argument("--output", default="artifacts/nvidia_gpu_train_ema_smoke.json")
     parser.add_argument("--steps", type=int, default=2)
     parser.add_argument("--inferences", type=int, default=4)
     args = parser.parse_args()
@@ -42,7 +42,7 @@ def main() -> int:
         raise SystemExit("provide --model-path or JEV_MODEL_PATH for an offline smoke")
     config = replace(config, runtime=replace(config.runtime, device="cuda", model_path=model_path, publish_every_steps=1))
     if not torch.cuda.is_available():
-        raise SystemExit("CUDA is required for the 5090 gate")
+        raise SystemExit("CUDA is required for the NVIDIA GPU gate")
 
     torch.cuda.empty_cache()
     torch.cuda.reset_peak_memory_stats()
@@ -59,7 +59,7 @@ def main() -> int:
         runtime,
         step_fn,
         model_factory=lambda: model,
-        checkpoint_dir=Path("/tmp/jev-5090-smoke-checkpoints"),
+        checkpoint_dir=Path("/tmp/jev-nvidia-gpu-smoke-checkpoints"),
     )
     observations: list[dict[str, int | float]] = []
     errors: list[str] = []
@@ -91,7 +91,9 @@ def main() -> int:
     ).stdout.strip()
     output = {
         "pass": not errors and len(observations) == args.inferences and runtime.ema.updates == args.steps,
-        "gpu": torch.cuda.get_device_name(0),
+        "gpu": "NVIDIA GPU",
+        "gpu_capability": f"{torch.cuda.get_device_capability(0)[0]}.{torch.cuda.get_device_capability(0)[1]}",
+        "gpu_memory_bytes": torch.cuda.get_device_properties(0).total_memory,
         "base_load_seconds": base_load_seconds,
         "steps": len(events),
         "losses": [event.loss for event in events],

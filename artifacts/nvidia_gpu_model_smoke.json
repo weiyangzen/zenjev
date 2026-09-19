@@ -1,8 +1,7 @@
 {
   "pass": true,
   "host": "sansha-DeskMini-Series",
-  "gpu": "NVIDIA GeForce RTX 5090 D",
-  "compute_capability": "12.0",
+  "gpu": "NVIDIA GPU",
   "torch": "2.9.1+cu128",
   "cuda": "12.8",
   "model_id": "fastino/gliner2-base-v1",
@@ -76,5 +75,6 @@
       "maintained_by": [],
       "replaces": []
     }
-  }
+  },
+  "gpu_capability": "12.0"
 }

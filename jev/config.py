@@ -216,6 +216,10 @@ class ToolTaskPolicy:
     allowed_tools: tuple[str, ...] = ()
     allowed_programming_languages: tuple[str, ...] = ()
     allowed_technologies: tuple[str, ...] = ()
+    # Finite technology-stack labels used by the decision classifier.  Keeping
+    # this list in policy makes the output auditable and prevents free-form
+    # model text from becoming an executable route.
+    decision_choices: tuple[str, ...] = ()
     decision_actions: tuple[str, ...] = ("allow", "review", "reject")
     min_confidence: float = 0.75
     unknown_policy: str = "reject"
@@ -233,6 +237,10 @@ class ToolTaskPolicy:
         tools = tuple(str(item).strip() for item in value.get("allowed_tools", []) if str(item).strip())
         languages = tuple(str(item).strip() for item in value.get("allowed_programming_languages", []) if str(item).strip())
         technologies = tuple(str(item).strip() for item in value.get("allowed_technologies", []) if str(item).strip())
+        raw_choices = value.get("decision_choices")
+        if raw_choices is None:
+            raw_choices = [*technologies, *tools, *languages]
+        decision_choices = tuple(str(item).strip() for item in raw_choices if str(item).strip())
         decision_actions = tuple(str(item).strip() for item in value.get("decision_actions", ["allow", "review", "reject"]) if str(item).strip())
         confidence = float(value.get("min_confidence", 0.75))
         unknown = str(value.get("unknown_policy", "reject"))
@@ -246,7 +254,9 @@ class ToolTaskPolicy:
             raise ConfigError("tool_task min_confidence must be in [0,1] and unknown_policy reject|unmapped")
         if len(set(decision_actions)) != len(decision_actions) or not {"allow", "reject"}.issubset(decision_actions):
             raise ConfigError("tool_task.decision_actions must include allow and reject")
-        return cls(name, version, task_types, actions, models, tools, languages, technologies, decision_actions, confidence, unknown, bool(value.get("require_evidence", True)))
+        if len(set(decision_choices)) != len(decision_choices):
+            raise ConfigError("tool_task.decision_choices must be unique")
+        return cls(name, version, task_types, actions, models, tools, languages, technologies, decision_choices, decision_actions, confidence, unknown, bool(value.get("require_evidence", True)))
 
     def as_contract(self) -> dict[str, Any]:
         return {
@@ -258,6 +268,7 @@ class ToolTaskPolicy:
             "allowed_tools": list(self.allowed_tools),
             "allowed_programming_languages": list(self.allowed_programming_languages),
             "allowed_technologies": list(self.allowed_technologies),
+            "decision_choices": list(self.decision_choices),
             "decision_actions": list(self.decision_actions),
             "min_confidence": self.min_confidence,
             "unknown_policy": self.unknown_policy,

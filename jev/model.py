@@ -17,7 +17,7 @@ def load_gliner(config: JevConfig, manifest_path: str | Path | None = None) -> A
     try:
         from gliner2 import AutoExtractor
     except ImportError as exc:
-        raise ModelUnavailable("install jev[runtime] on the 5090 host") from exc
+        raise ModelUnavailable("install jev[runtime] on an NVIDIA GPU host") from exc
     kwargs: dict[str, Any] = {}
     if config.runtime.device != "auto":
         kwargs["map_location"] = config.runtime.device

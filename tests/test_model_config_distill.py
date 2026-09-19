@@ -6,7 +6,7 @@ from jev.config import JevConfig
 from jev.distill import OpenAICompatibleTeacher, _validate_output
 from jev.model import apply_lora, extract, gliner2_step, load_gliner
 from jev.sources import SourceDocument
-from jev.tool_task import classify_task_type, resolve_tool_task
+from jev.tool_task import classify_decision_choices, classify_task_type, resolve_tool_task
 
 
 def make_config():
@@ -158,6 +158,7 @@ def test_tool_task_policy_allowlist_routes_without_executing_tools(tmp_path):
             "task_actions": {"coding": "allow", "other": "reject"},
             "allowed_models": [{"id": "gpt-6-astra", "provider": "openai-compatible"}],
             "allowed_tools": ["python"],
+            "decision_choices": ["PyTorch", "Python", "SQL"],
             "decision_actions": ["allow", "review", "reject"],
             "min_confidence": 0.75,
         },
@@ -166,6 +167,11 @@ def test_tool_task_policy_allowlist_routes_without_executing_tools(tmp_path):
     output = {"task_type": {"label": "coding", "confidence": 0.9}, "entities": {"tool": [{"text": "python", "start": 0, "end": 6}]}}
     decision = resolve_tool_task(output, config.tool_task, model_id="gpt-6-astra")
     assert decision["allowed"] is True and decision["action"] == "allow"
+    choice_output = {"decision_choice": {"value": ["PyTorch", "Python"], "confidence": 0.91, "probabilities": {"PyTorch": 0.91, "Python": 0.82, "SQL": 0.11}}}
+    choices = resolve_tool_task({**output, **choice_output}, config.tool_task, model_id="gpt-6-astra")["decision_choices"]
+    assert choices == [{"choice": "PyTorch", "probability": 0.91}, {"choice": "Python", "probability": 0.82}, {"choice": "SQL", "probability": 0.11}]
+    extracted = resolve_tool_task({**output, "entities": {"technology": [{"text": "PyTorch", "confidence": 0.88}]}}, config.tool_task, model_id="gpt-6-astra")
+    assert extracted["decision_choices"] == [{"choice": "PyTorch", "probability": 0.88}]
     rejected = resolve_tool_task(output, config.tool_task, model_id="unknown-model")
     assert rejected["allowed"] is False and "model_not_allowlisted" in rejected["reasons"]
 
@@ -201,3 +207,32 @@ def test_classify_task_type_uses_finite_policy_labels(monkeypatch):
     result = classify_task_type(object(), "fix bug", config.tool_task)
     assert result["task_type"]["label"] == "coding"
     assert calls["schema"][1] == ["coding", "other"]
+
+
+def test_classify_decision_choices_preserves_probability_map(monkeypatch):
+    policy = JevConfig.from_dict({
+        **make_config().canonical(),
+        "tool_task": {
+            "task_types": ["coding"],
+            "task_actions": {"coding": "allow"},
+            "allowed_models": [{"id": "gpt-6-astra", "provider": "openai-compatible"}],
+            "decision_choices": ["PyTorch", "Python"],
+        },
+    }).tool_task
+    calls = {}
+    class Schema:
+        def multi(self, name, labels, **kwargs):
+            calls["schema"] = (name, labels, kwargs)
+            return self
+    class Result:
+        def to_dict(self):
+            return {"decision_choice": {"value": ["PyTorch"], "confidence": 0.9, "probabilities": {"PyTorch": 0.9, "Python": 0.2}}}
+    class Classifier:
+        def __init__(self, model): pass
+        def classify(self, text, schema, config): return Result()
+    monkeypatch.setitem(sys.modules, "gliner2.classification", types.SimpleNamespace(
+        ClassificationConfig=lambda **kwargs: kwargs, ClassificationSchema=Schema, Classifier=Classifier,
+    ))
+    result = classify_decision_choices(object(), "train with PyTorch", policy)
+    assert result["decision_choice"]["probabilities"]["PyTorch"] == 0.9
+    assert calls["schema"][1] == ["PyTorch", "Python"]

@@ -4,9 +4,9 @@ Generated read-only projection. The sole authority is [stage0_zenjev_blueprint.m
 No implementation acceptance is implied by generating this file.
 
 **Source blueprint:** `Docs/stage0_zenjev_blueprint.md`
-**Source SHA-256:** `cb37b98bb8df34c2de4fedbc089198305b84b95617c72f178d6f3a5a10804994`
-**Specification SHA-256:** `8504dc5205273a064b17eccca35ef83dcd8dfa6c1e53e596b992f3db015ea1ec`
-**Generated at (UTC):** `2026-09-19T20:31:08Z`
+**Source SHA-256:** `94e07619ff75cb66569630f68d7e491420ffd661d524fd10027fdbe939f97d05`
+**Specification SHA-256:** `63f539ad474c8f5cd51c0b4746a1965ea88c7164c35ba2c495711c026a886f5e`
+**Generated at (UTC):** `2026-09-19T20:40:14Z`
 **Generation command:** `python3 scripts/validate_blueprint.py --generate`
 **Check command:** `python3 scripts/validate_blueprint.py --check`
 
@@ -64,8 +64,8 @@ The validation-preparation frontier consists of unfinished items; it authorizes 
 | ZJ-027 | todo | ZJ-014,ZJ-023,ZJ-025,ZJ-026 | Master | `jev/runtime.py`, `jev/training.py`, `jev/cli.py`, `tests/test_jev.py`, `scripts/smoke.py` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-014,ZJ-023,ZJ-025,ZJ-026 | Unscheduled | G2,G4,G5 |
 | ZJ-028 | todo | ZJ-026 | Schema worker | `configs/jev_tool_task.yaml`, `jev/config.py`, `jev/tool_task.py`, `tests/test_model_config_distill.py` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-026 | Unscheduled | G1,G4,G9 |
 | ZJ-029 | todo | ZJ-011,ZJ-028 | Data worker | `jev/sources.py`, `jev/tool_task.py`, `configs/jev_tool_task.yaml`, `tests/test_jev.py` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-011,ZJ-028 | Unscheduled | G1,G2,G9 |
-| ZJ-030 | todo | ZJ-001,ZJ-020 | Hardware worker | `scripts/validate_5090.py`, `artifacts/hardware/`, `Docs/runbooks/` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-001,ZJ-020 | Unscheduled | G6 |
-| ZJ-031 | todo | ZJ-027,ZJ-030 | Hardware worker | `scripts/smoke_5090.py`, `benchmarks/`, `artifacts/benchmarks/`, `tests/benchmarks/` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-027,ZJ-030 | Unscheduled | G6 |
+| ZJ-030 | todo | ZJ-001,ZJ-020 | Hardware worker | `scripts/validate_nvidia_gpu.py`, `artifacts/hardware/`, `Docs/runbooks/` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-001,ZJ-020 | Unscheduled | G6 |
+| ZJ-031 | todo | ZJ-027,ZJ-030 | Hardware worker | `scripts/smoke_nvidia_gpu.py`, `benchmarks/`, `artifacts/benchmarks/`, `tests/benchmarks/` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-027,ZJ-030 | Unscheduled | G6 |
 | ZJ-032 | todo | ZJ-014,ZJ-027 | Evaluation worker | `artifacts/evaluations/`, `jev/drift.py`, `tests/test_jev.py` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-014,ZJ-027 | Unscheduled | G2,G4,G5 |
 | ZJ-033 | todo | ZJ-025,ZJ-031 | Evaluation worker | `artifacts/recovery/`, `tests/recovery/` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-025,ZJ-031 | Unscheduled | G5,G6 |
 | ZJ-034 | todo | ZJ-011,ZJ-012,ZJ-013,ZJ-014 | Master | `artifacts/audits/`, `Docs/runbooks/` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-011,ZJ-012,ZJ-013,ZJ-014 | Unscheduled | G1,G2,G7 |

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed RTX 5090 gate for the actual model runtime.
+"""Fail-closed NVIDIA GPU gate for the actual model runtime.
 
 This intentionally does not treat ``nvidia-smi`` alone as a successful model
 gate: PyTorch, CUDA visibility, and the GLiNER2 import must all work.
@@ -26,10 +26,13 @@ def main() -> int:
     for index in range(torch.cuda.device_count()):
         props = torch.cuda.get_device_properties(index)
         devices.append({"index": index, "name": props.name, "total_memory": props.total_memory, "capability": f"{props.major}.{props.minor}"})
-    if not any("5090" in item["name"] for item in devices):
-        print(json.dumps({"pass": False, "reason": "RTX_5090_not_found", "devices": devices}))
+    if not devices:
+        print(json.dumps({"pass": False, "reason": "nvidia_gpu_not_found", "devices": devices}))
         return 2
     result = subprocess.run(["nvidia-smi", "--query-gpu=name,memory.total,driver_version", "--format=csv,noheader"], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        print(json.dumps({"pass": False, "reason": "nvidia_smi_unavailable", "devices": devices, "stderr": result.stderr.strip()}))
+        return 2
     print(json.dumps({"pass": True, "torch": torch.__version__, "cuda": torch.version.cuda, "devices": devices, "nvidia_smi": result.stdout.strip()}, ensure_ascii=False))
     return 0
 

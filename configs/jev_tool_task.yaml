@@ -1,4 +1,4 @@
-# Standard Jev tool-task contract. The allowlist is policy input; it is never
+# Standard ZenJev tool-task contract. The allowlist is policy input; it is never
 # inferred from model output and unknown models are rejected by the router.
 model_id: fastino/gliner2-base-v1
 model_revision: 79c3a777abc572b4767922f3916cf63fb5754df2
@@ -6,7 +6,7 @@ schema:
   name: jev_tool_task
   version: 1
   language: auto
-  description: Request/response task and technology extraction for Jev routing.
+  description: Request/response task and technology extraction for ZenJev routing.
   entities:
     task_detail: Detailed request intent, constraint, or required operation.
     tool: Tool or external service explicitly used in the response.
@@ -16,7 +16,7 @@ schema:
     model: Model named in the request or response.
   classifications:
     task_type: [coding, code_review, debugging, research, planning, operations, translation, data_analysis, tool_use, other]
-    decision_route: [allow, review, reject]
+    decision_choice: [PyTorch, GLiNER2, PostgreSQL, Docker, Kubernetes, Transformers, PEFT, Python, JavaScript, TypeScript, Go, Rust, Java, SQL, C++, python, bash, git, browser, docker]
   fields:
     - {name: request_goal, dtype: str, description: Normalized request goal, required: false}
     - {name: response_summary, dtype: str, description: Short response outcome, required: false}
@@ -44,6 +44,7 @@ tool_task:
   allowed_tools: [python, bash, git, browser, sql, docker]
   allowed_programming_languages: [Python, JavaScript, TypeScript, Go, Rust, Java, SQL, C++]
   allowed_technologies: [PyTorch, GLiNER2, PostgreSQL, Docker, Kubernetes, Transformers, PEFT]
+  decision_choices: [PyTorch, GLiNER2, PostgreSQL, Docker, Kubernetes, Transformers, PEFT, Python, JavaScript, TypeScript, Go, Rust, Java, SQL, C++, python, bash, git, browser, docker]
   decision_actions: [allow, review, reject]
   min_confidence: 0.75
   unknown_policy: reject

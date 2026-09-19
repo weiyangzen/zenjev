@@ -3,7 +3,7 @@
 **状态：研究方案（Stage 0 输入，不是运行时实现）**  
 **更新：2026-09-20**
 
-本文给出 Jev 的模型、蒸馏、持续训练、在线推理、漂移检测和 5090 部署方案。`Docs/stage0_zenjev_blueprint.md` 是执行阶段的唯一权威；本文件记录设计依据、可验证的决策和风险。
+本文给出 Jev 的模型、蒸馏、持续训练、在线推理、漂移检测和 NVIDIA GPU 部署方案。`Docs/stage0_zenjev_blueprint.md` 是执行阶段的唯一权威；本文件记录设计依据、可验证的决策和风险。
 
 ## 1. 目标与边界
 
@@ -15,7 +15,7 @@ Jev 接收用户定义的 Schema 和用户允许的数据源，将可信教师�
 * 可插拔教师提供商（例如用户已获授权的 GPT 系列或 DeepSeek 系列端点），不把某个未来模型名称写死；
 * URL/RSS/API/本地文件等经过允许列表的数据源，抓取、去重、证据保留和审计；
 * GLiNER2 205M 本地抽取、LoRA 适配器、EMA、在线推理和回滚；
-* 在 RTX 5090 主机上可复现的训练和基准门禁。
+* 在 NVIDIA GPU 主机上可复现的训练和基准门禁。
 
 不把教师模型的输出当作事实真值：教师结果必须经过 JSON Schema、证据引用、重复样本和人工/规则门禁后才能进入训练集。
 
@@ -35,9 +35,9 @@ Fastino 的官方模型卡明确将 `fastino/gliner2-base-v1` 标为 **205M 参�
 
 ### 2.1.1 `jev-tool-task`：从任务类型到受控路由
 
-GLiNER2 的官方 Schema API 支持文档分类、结构化记录和关系抽取，因此适合把 request/response 落地池压缩成有限的决策特征：request 侧用 `task_type` 分类和 `task_detail` 实体/字段，response 侧用 `tool`、`programming_language`、`framework`、`technology`、`model` 实体以及 `uses_*` 关系。官方教程分别覆盖[分类](https://github.com/fastino-ai/GLiNER2/blob/main/tutorial/1-classification.md)、[JSON/record 抽取](https://github.com/fastino-ai/GLiNER2/blob/main/tutorial/3-json_extraction.md)、[组合 Schema](https://github.com/fastino-ai/GLiNER2/blob/main/tutorial/4-combined.md)和[关系抽取](https://github.com/fastino-ai/GLiNER2/blob/main/tutorial/6-relation_extraction.md)。
+GLiNER2 的官方 Schema API 支持文档分类、结构化记录和关系抽取，因此适合把 request/response 落地池压缩成有限的决策特征：request 侧用 `task_type` 分类和 `task_detail` 实体/字段，response 侧用 `tool`、`programming_language`、`framework`、`technology`、`model` 实体以及 `uses_*` 关系；decision 侧在有限的技术栈候选上保留完整 probability map，再排序为 choice 列表。官方教程分别覆盖[分类](https://github.com/fastino-ai/GLiNER2/blob/main/tutorial/1-classification.md)、[JSON/record 抽取](https://github.com/fastino-ai/GLiNER2/blob/main/tutorial/3-json_extraction.md)、[组合 Schema](https://github.com/fastino-ai/GLiNER2/blob/main/tutorial/4-combined.md)和[关系抽取](https://github.com/fastino-ai/GLiNER2/blob/main/tutorial/6-relation_extraction.md)。
 
-这不等于模型可以根据任务类型自由生成并执行决策。GLiNER2 是 schema-conditioned extractor/classifier：它可以在预先定义的有限标签集合中输出 `task_type`、`decision_route`、confidence 和 evidence，但不会成为规划器或工具调用器。Jev 需要在 `configs/jev_tool_task.yaml` 中维护模型、工具、编程语言和技术栈 allowlist；先依据落地记录中的可信 `observed_model` 做精确匹配，再抽取 request 和 response，最后由 `jev.tool_task.resolve_tool_task` 做置信度、证据、冲突和 allowlist 检查。未知模型直接 reject；低置信度或缺少证据进入 review/fallback；只有 policy 输出 `allow` 后，独立工具适配器才有资格执行。
+这不等于模型可以根据任务类型自由生成并执行决策。GLiNER2 是 schema-conditioned extractor/classifier：它可以在预先定义的有限标签集合中输出 `task_type`，并为 `decision_choices` 技术栈候选返回概率列表，例如 `[{"choice":"PyTorch","probability":0.91},{"choice":"Python","probability":0.82}]`，但不会成为规划器或工具调用器。ZenJev 需要在 `configs/jev_tool_task.yaml` 中维护模型、工具、编程语言和技术栈 allowlist；先依据落地记录中的可信 `observed_model` 做精确匹配，再抽取 request 和 response，最后由 `jev.tool_task.resolve_tool_task` 做置信度、证据、冲突和 allowlist 检查。未知模型直接 reject；低置信度或缺少证据进入 review/fallback；只有 policy 输出 `allow` 后，独立工具适配器才有资格执行。
 
 推荐的标准记录是：`request_id`、source URI/hash/retrieved_at/license、observed provider/model、`request.text`、`response.text`。request/response 分开推理，避免 response 泄漏到任务类型；同一个 schema digest 和 adapter/EMA metadata 写入两侧结果。若启用 GLiNER2 分类约束 DSL，应锁定安装版本并增加 implies/excludes 的正负 golden tests；约束只缩小候选标签，Jev policy 仍是最终安全边界。当前 pinned 205M span checkpoint 不应假设 GLiNER2.5 boundary 的 JointIE typed graph 能力。
 
@@ -70,7 +70,7 @@ source config ─▶ fetch/normalize ─▶ teacher adapter ─▶ validator ─
                                                                 │
                                                                 ▼
                 ┌──────────────────────────────────────────────────────────────┐
-                │ trainer worker (5090)                                         │
+                │ trainer worker (NVIDIA GPU)                                         │
                 │ live LoRA optimizer ─▶ EMA update ─▶ holdout/eval ─▶ candidate │
                 └──────────────────────────────────────────────────────────────┘
 ```
@@ -80,7 +80,7 @@ source config ─▶ fetch/normalize ─▶ teacher adapter ─▶ validator ─
 * **Promotion controller**：验证 candidate 的 manifest 和指标，写入 `adapters/<id>/` 后原子更新 `active.json`；失败时保留旧 active。每次切换都可审计和回滚。
 * **Reset controller**：执行第 6 节的硬门禁。重置期间 inference 继续服务旧 active；新 adapter 只有通过门禁才可上线。
 
-同一进程共享 GPU 权重会让训练、EMA 和推理产生竞态；首版应使用独立 inference/trainer 进程或严格的读写锁与 copy-on-write。5090 显存足以容纳一个 205M fp16 基础模型和 LoRA/EMA 副本，但不能假设无限余量；启动时记录 `torch.cuda.mem_get_info()`，OOM 时退回 bf16/fp16、较小 batch 和 gradient accumulation。
+同一进程共享 GPU 权重会让训练、EMA 和推理产生竞态；首版应使用独立 inference/trainer 进程或严格的读写锁与 copy-on-write。NVIDIA GPU 显存足以容纳一个 205M fp16 基础模型和 LoRA/EMA 副本，但不能假设无限余量；启动时记录 `torch.cuda.mem_get_info()`，OOM 时退回 bf16/fp16、较小 batch 和 gradient accumulation。
 
 ## 4. 用户 Schema 合约
 
@@ -161,13 +161,13 @@ replay buffer 分成 `recent`、`stable`、`canary` 三层：recent 反映新来
 
 **Reset 流程：** (1) promotion controller 立即固定旧 active；(2) trainer 停止接收新 batch，保存诊断和失败 candidate；(3) 从基础模型 revision 重新加载空 LoRA、空 EMA 和新 optimizer；(4) 以 stable + 最近一段已通过验证的 recent 数据 warm-up，使用较小学习率和 early stopping；(5) 在 holdout/canary 上重新评估；(6) 通过 promotion gate 后原子切换，否则继续提供旧 active 并报警。保留最近 N 个 adapter/manifest 供回滚，绝不删除基础 checkpoint 或证据原文。
 
-## 7. RTX 5090 训练/推理计划
+## 7. NVIDIA GPU 训练/推理计划
 
-NVIDIA 官方产品页：[GeForce RTX 5090](https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/rtx-5090/) 给出 32 GB GDDR7 显存等硬件规格。部署脚本在启动时记录 GPU 名称、显存、驱动、CUDA、PyTorch、GLiNER2 版本和 git/model revision；“5090 可用”必须由目标主机上的 smoke test 证明，而不是由规格推断。
+NVIDIA GPU 的显存、计算能力和功耗随型号变化；部署脚本在启动时记录实际 GPU 名称、显存、驱动、CUDA、PyTorch、GLiNER2 版本和 git/model revision；GPU 可用性必须由目标主机上的 smoke test 证明，而不是由规格推断。
 
 建议初始配置：
 
-* 基础模型 fp16 或 bf16（以 5090 上的稳定性 smoke test 决定），冻结 base；LoRA `r=8, alpha=16, dropout=0.05`；训练 batch 从 8 开始，OOM 时用 gradient accumulation；
+* 基础模型 fp16 或 bf16（以 NVIDIA GPU 上的稳定性 smoke test 决定），冻结 base；LoRA `r=8, alpha=16, dropout=0.05`；训练 batch 从 8 开始，OOM 时用 gradient accumulation；
 * `torch.autocast`、gradient clipping（例如 1.0）、非有限梯度检测、周期性 EMA export；默认不依赖 FlashAttention 或自定义 CUDA kernel；
 * inference 与 trainer 分进程，推理服务优先加载 EMA adapter；仅在 candidate 通过 gate 后 reload；
 * 评测基准至少记录 p50/p95 延迟、tokens/s、显存峰值、训练 step/s 和每个 Schema 的质量。以目标 SLO 配置为准，不在研究阶段伪造固定吞吐数字；
@@ -177,7 +177,7 @@ NVIDIA 官方产品页：[GeForce RTX 5090](https://www.nvidia.com/en-us/geforce
 
 每个结果的最小审计字段：`request_id`、`schema_id/version`、`source_ids/hashes`、`base_model_revision`、`adapter_id/hash`、是否 EMA、推理阈值、代码版本和时间。训练日志应包含 batch/source 分布、live/EMA 指标、梯度/adapter norm、GPU memory、样本拒绝原因、provider 用量和成本；日志不得包含 API key 或未脱敏 PII。
 
-上线前至少执行：Schema validator 单测、teacher 输出回放、固定 golden/holdout/canary、跨来源去重测试、adapter 原子切换/回滚测试、NaN/OOM/reset 演练、断网推理 smoke test、中文与英文 splitter 对照、5090 GPU smoke test。验收证据应写入 candidate manifest 并由 Stage 0 blueprint 的 gate 引用。
+上线前至少执行：Schema validator 单测、teacher 输出回放、固定 golden/holdout/canary、跨来源去重测试、adapter 原子切换/回滚测试、NaN/OOM/reset 演练、断网推理 smoke test、中文与英文 splitter 对照、NVIDIA GPU smoke test。验收证据应写入 candidate manifest 并由 Stage 0 blueprint 的 gate 引用。
 
 ## 9. 已知风险和取舍
 
@@ -198,4 +198,4 @@ NVIDIA 官方产品页：[GeForce RTX 5090](https://www.nvidia.com/en-us/geforce
 6. PyTorch, *AveragedModel*：<https://docs.pytorch.org/docs/stable/generated/torch.optim.swa_utils.AveragedModel.html>
 7. Hugging Face timm, *ModelEmaV2 implementation*：<https://github.com/huggingface/pytorch-image-models/blob/main/timm/utils/model_ema.py>
 8. Hinton et al., *Distilling the Knowledge in a Neural Network*：<https://arxiv.org/abs/1503.02531>
-9. NVIDIA, *GeForce RTX 5090 specifications*：<https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/rtx-5090/>
+9. NVIDIA, *CUDA documentation*：<https://docs.nvidia.com/cuda/>
