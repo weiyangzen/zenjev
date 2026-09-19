@@ -25,7 +25,7 @@ def load_gliner(config: JevConfig) -> Any:
 def apply_lora(model: Any, config: JevConfig) -> Any:
     if not hasattr(model, "apply_lora"):
         raise ModelUnavailable("installed GLiNER2 does not expose apply_lora")
-    model.apply_lora(targets=["encoder"], r=config.runtime.lora_r, lora_alpha=config.runtime.lora_alpha, lora_dropout=config.runtime.lora_dropout)
+    model.apply_lora(targets=["encoder"], r=config.runtime.lora_r, alpha=config.runtime.lora_alpha, dropout=config.runtime.lora_dropout)
     return model
 
 
@@ -33,4 +33,3 @@ def extract(model: Any, config: JevConfig, text: str) -> Any:
     if hasattr(model, "extract"):
         return model.extract(text, config.schema.as_teacher_contract())
     return model.extract_entities(text, list(config.schema.entities))
-
