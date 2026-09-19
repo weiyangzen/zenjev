@@ -1,6 +1,8 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+*.egg-info/
+uv.lock
 .mypy_cache/
 .venv/
 venv/
@@ -14,4 +16,3 @@ artifacts/checkpoints/
 *.pt
 *.bin
 *.log
-
