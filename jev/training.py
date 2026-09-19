@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable
 
 from .config import JevConfig
+from .ema import EMAState
 from .model import apply_lora, load_gliner
 from .runtime import JevRuntime
 
@@ -56,11 +57,16 @@ class ContinuousLoRATrainer:
         return self._optimizer
 
     def _reset_model(self, reason: str) -> None:
+        # A collapse reset starts a new adapter lineage; never blend old EMA
+        # tensors into the fresh zeroed LoRA model.
+        self.runtime.ema = EMAState(decay=self.runtime.ema.decay)
+        self.runtime.stats.reset_id += 1
         self.model = self.model_factory()
         self._optimizer = None
         self.runtime.publish(self.model, self._state())
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        (self.checkpoint_dir / "reset-events.jsonl").open("a", encoding="utf-8").write(json.dumps({"reason": reason, "step": self.runtime.stats.training_steps}) + "\n")
+        with (self.checkpoint_dir / "reset-events.jsonl").open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"reset_id": self.runtime.stats.reset_id, "reason": reason, "step": self.runtime.stats.training_steps}) + "\n")
 
     def train(self, examples: Iterable[dict[str, Any]], max_steps: int | None = None) -> list[TrainEvent]:
         optimizer = self._ensure_optimizer()

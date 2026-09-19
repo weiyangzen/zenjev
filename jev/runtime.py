@@ -15,6 +15,7 @@ class RuntimeStats:
     training_steps: int = 0
     model_generation: int = 0
     last_drift: DriftState | None = None
+    reset_id: int = 0
 
 
 class JevRuntime:
