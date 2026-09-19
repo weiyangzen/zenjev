@@ -3,8 +3,8 @@
 **Projection type:** generated, read-only monitoring surface. It is never parsed as requirements authority and contains no mutable checklist marks. The sole authority is [stage0_zenjev_blueprint.md](stage0_zenjev_blueprint.md).  
 **Source blueprint:** `Docs/stage0_zenjev_blueprint.md`  
 **Source SHA-256:** `d03416382ff1369fb777c12079d3a17a71fc5ebce51ad73066c64ca6f6e1374a`  
-**Specification SHA-256:** `d03416382ff1369fb777c12079d3a17a71fc5ebce51ad73066c64ca6f6e1374a` (initial frozen specification is embedded in the source blueprint)  
-**Generated at (UTC):** `2026-09-19T17:32:09Z`  
+**Specification SHA-256:** `554673524b51f64600bfce9d9744cfc94a3227bc42d9f3b2fe84ef61a69281db` (SHA-256 of the frozen specification section in the source blueprint)  
+**Generated at (UTC):** `2026-09-19T17:37:11Z`  
 **Generation policy:** The initial run has no recorded start/finish timestamps. The render below uses a relative one-day planning estimate solely to keep a renderable Gantt view; every monitoring row remains `unscheduled` until a controller records timestamps. No calendar date is implied.
 
 ## Monitoring summary
