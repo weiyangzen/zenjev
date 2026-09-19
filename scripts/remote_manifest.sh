@@ -6,5 +6,6 @@ find "$root" -type f \
   -not -path '*/.zenjev/runtime/*' \
   -not -path '*/.venv/*' \
   -not -path '*/.pytest_cache/*' \
+  -not -path '*/artifacts/delivery/*_receipt.json' \
   -not -path '*/__pycache__/*' \
   -print0 | sort -z | xargs -0 sha256sum
