@@ -7,6 +7,7 @@ from jev.config import ConfigError, DriftPolicy, JevConfig, load_config
 from jev.distill import DistilledExample, distill
 from jev.drift import DriftMonitor
 from jev.runtime import JevRuntime
+from jev.training import ContinuousLoRATrainer
 
 
 def cfg(tmp_path: Path) -> JevConfig:
@@ -63,3 +64,89 @@ def test_runtime_publishes_and_infers():
     runtime = JevRuntime(value, infer=lambda model, text: {"model": model, "text": text})
     runtime.publish("adapter")
     assert runtime.infer("x")["model"] == "adapter"
+
+
+def test_training_ema_clip_checkpoint_and_resume(tmp_path):
+    torch = pytest.importorskip("torch")
+
+    class TinyAdapter(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.base = torch.nn.Parameter(torch.tensor(2.0), requires_grad=False)
+            self.adapter = torch.nn.Parameter(torch.tensor(0.0))
+
+    value = JevConfig.from_dict({
+        "model_id": "fastino/gliner2-base-v1",
+        "schema": {"name": "x", "entities": ["technology"]},
+        "sources": [{"name": "s", "kind": "text", "location": str(tmp_path / "in.txt")}],
+        "teacher": {"provider": "test", "model": "teacher", "base_url": "https://example.invalid/v1", "api_key_env": "KEY"},
+        "runtime": {"ema_decay": 0.5, "grad_clip_norm": 0.1, "checkpoint_every_steps": 1, "publish_every_steps": 1},
+    })
+    runtime = JevRuntime(value, infer=lambda model, text: float(model.adapter.detach().item()))
+    trainer = ContinuousLoRATrainer(
+        value,
+        runtime,
+        lambda model, example: (model.adapter - example["target"]).pow(2),
+        model_factory=TinyAdapter,
+        checkpoint_dir=tmp_path / "run",
+    )
+    events = trainer.train([{"target": 10.0}], max_steps=1)
+    assert events[0].checkpoint
+    latest = tmp_path / "run" / "latest.pt"
+    assert latest.exists()
+    payload = torch.load(latest, map_location="cpu", weights_only=False)
+    assert payload["kind"] == "adapter-only"
+    assert set(payload["adapter_state"]) == {"adapter"}
+    assert payload["ema_updates"] == 1
+    resumed_runtime = JevRuntime(value, infer=lambda model, text: float(model.adapter.detach().item()))
+    resumed = ContinuousLoRATrainer(
+        value,
+        resumed_runtime,
+        lambda model, example: (model.adapter - example["target"]).pow(2),
+        model_factory=TinyAdapter,
+        checkpoint_dir=tmp_path / "resumed",
+        resume_from=latest,
+    )
+    assert resumed.runtime.stats.training_steps == 1
+    assert resumed.runtime.ema.updates == 1
+    assert resumed.runtime.infer("x") == pytest.approx(runtime.infer("x"), rel=1e-5)
+
+
+def test_collapse_archives_state_and_warmup_keeps_old_snapshot(tmp_path):
+    torch = pytest.importorskip("torch")
+
+    class TinyAdapter(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.base = torch.nn.Parameter(torch.tensor(2.0), requires_grad=False)
+            self.adapter = torch.nn.Parameter(torch.tensor(0.0))
+
+    value = JevConfig.from_dict({
+        "model_id": "fastino/gliner2-base-v1",
+        "schema": {"name": "x", "entities": ["technology"]},
+        "sources": [{"name": "s", "kind": "text", "location": str(tmp_path / "in.txt")}],
+        "teacher": {"provider": "test", "model": "teacher", "base_url": "https://example.invalid/v1", "api_key_env": "KEY"},
+        "runtime": {"reset_warmup_steps": 2, "checkpoint_every_steps": 1, "publish_every_steps": 1},
+    })
+    runtime = JevRuntime(value, infer=lambda model, text: float(model.adapter.detach().item()))
+    trainer = ContinuousLoRATrainer(
+        value,
+        runtime,
+        lambda model, example: (model.adapter - example["target"]).pow(2),
+        model_factory=TinyAdapter,
+        checkpoint_dir=tmp_path / "run",
+    )
+    trainer.train([{"target": 1.0}], max_steps=1)
+    old_generation = runtime.stats.model_generation
+    old_value = runtime.infer("x")
+    trainer._reset_model("synthetic_collapse")
+    assert runtime.stats.reset_id == 1
+    assert runtime.stats.model_generation == old_generation
+    assert runtime.infer("x") == pytest.approx(old_value)
+    archives = list((tmp_path / "run" / "archives").glob("reset-*.pt"))
+    assert len(archives) == 1
+    archived = torch.load(archives[0], map_location="cpu", weights_only=False)
+    assert archived["failure_reason"] == "synthetic_collapse"
+    trainer.train([{"target": 0.0}, {"target": 0.0}], max_steps=2)
+    assert runtime.stats.model_generation == old_generation + 1
+    assert not trainer._warmup_pending

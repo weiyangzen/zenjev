@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -78,10 +79,16 @@ def main() -> int:
 
     thread = threading.Thread(target=infer_loop)
     thread.start()
+    train_started = time.perf_counter()
     events = trainer.train([{} for _ in range(args.steps)], max_steps=args.steps)
+    train_seconds = time.perf_counter() - train_started
     thread.join()
     final = runtime.infer_result("2026最佳技术栈包括 Python 和 PostgreSQL")
     latencies = sorted(item["seconds"] for item in observations)
+    nvidia_smi = subprocess.run(
+        ["nvidia-smi", "--query-gpu=temperature.gpu,power.draw", "--format=csv,noheader"],
+        capture_output=True, text=True, check=False,
+    ).stdout.strip()
     output = {
         "pass": not errors and len(observations) == args.inferences and runtime.ema.updates == args.steps,
         "gpu": torch.cuda.get_device_name(0),
@@ -93,6 +100,11 @@ def main() -> int:
         "inference_calls": len(observations),
         "inference_observations": observations,
         "inference_p50_seconds": latencies[len(latencies) // 2] if latencies else None,
+        "inference_p95_seconds": latencies[min(len(latencies) - 1, max(0, int(len(latencies) * 0.95) - 1))] if latencies else None,
+        "inference_throughput_per_second": (len(latencies) / sum(latencies)) if latencies and sum(latencies) > 0 else None,
+        "training_seconds": train_seconds,
+        "training_steps_per_second": (len(events) / train_seconds) if train_seconds > 0 else None,
+        "nvidia_smi_temperature_power": nvidia_smi,
         "errors": errors,
         "peak_vram_bytes": torch.cuda.max_memory_allocated(),
         "result": final["output"],

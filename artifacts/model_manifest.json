@@ -3,10 +3,10 @@
   "revision": "79c3a777abc572b4767922f3916cf63fb5754df2",
   "architecture": "GLiNER2 span extractor",
   "parameter_count": 205000000,
+  "parameter_count_tolerance": 0.05,
   "encoder": "microsoft/deberta-v3-base",
   "language": ["en"],
   "license": "apache-2.0",
   "source": "https://huggingface.co/fastino/gliner2-base-v1",
   "note": "Exact parameter count is the model-card rounded value; verify loaded state-dict count at startup."
 }
-

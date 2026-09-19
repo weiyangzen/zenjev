@@ -3,8 +3,9 @@ import sys
 import types
 
 from jev.config import JevConfig
-from jev.distill import _validate_output
-from jev.model import apply_lora, extract, load_gliner
+from jev.distill import OpenAICompatibleTeacher, _validate_output
+from jev.model import apply_lora, extract, gliner2_step, load_gliner
+from jev.sources import SourceDocument
 
 
 def make_config():
@@ -92,3 +93,56 @@ def test_load_gliner_uses_staged_snapshot_without_hub_revision(monkeypatch, tmp_
     assert load_gliner(config) == "model"
     assert calls["source"] == str(staged)
     assert "revision" not in calls["kwargs"]
+
+
+def test_gliner2_step_uses_official_collator(monkeypatch):
+    calls = {}
+
+    class Collator:
+        def __init__(self, processor, **kwargs):
+            calls["kwargs"] = kwargs
+        def __call__(self, batch):
+            calls["batch"] = batch
+            return "batch"
+
+    monkeypatch.setitem(sys.modules, "gliner2.training", types.SimpleNamespace(ExtractorCollator=Collator))
+    class Model:
+        processor = object()
+        def __call__(self, batch):
+            assert batch == "batch"
+            return {"total_loss": "loss"}
+    assert gliner2_step(Model(), make_config(), {"input": "Python", "output": {"entities": {"technology": ["Python"]}}}) == "loss"
+    assert calls["kwargs"]["is_training"] is True
+
+
+def test_teacher_cache_reuses_strict_json_response(monkeypatch, tmp_path):
+    config = JevConfig.from_dict({
+        **make_config().canonical(),
+        "teacher": {
+            **make_config().canonical()["teacher"],
+            "cache_dir": str(tmp_path / "teacher-cache"),
+            "max_retries": 0,
+        },
+    })
+    payload = {"choices": [{"message": {"content": '{"technology":["Python"]}'}}], "usage": {"total_tokens": 3}}
+    calls = {"count": 0}
+
+    class Response:
+        def __enter__(self): return self
+        def __exit__(self, *args): return False
+        def read(self): return json.dumps(payload).encode()
+
+    def fake_urlopen(request, timeout):
+        calls["count"] += 1
+        return Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setenv("KEY", "test-secret")
+    teacher = OpenAICompatibleTeacher(config)
+    document = SourceDocument("fixture", "fixture://1", "Python", "test")
+    assert teacher.label(document) == {"technology": ["Python"]}
+    assert teacher.last_metadata["cache_hit"] is False
+    assert teacher.label(document) == {"technology": ["Python"]}
+    assert teacher.last_metadata["cache_hit"] is True
+    assert calls["count"] == 1
+    assert list((tmp_path / "teacher-cache").glob("*.json"))

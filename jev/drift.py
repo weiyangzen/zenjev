@@ -32,6 +32,7 @@ class DriftMonitor:
         self.last_reset_step = -policy.reset_cooldown_steps
         self._window_invalid = False
         self._window_confidence_ok = True
+        self._non_finite = 0
 
     def observe(
         self,
@@ -49,10 +50,15 @@ class DriftMonitor:
         self.step += 1
         reason: str | None = None
         if not weights_finite:
-            reason = "non_finite_weights"
+            self._non_finite += 1
+            if self._non_finite > self.policy.max_non_finite:
+                reason = "non_finite_weights"
         elif loss != loss or loss in (float("inf"), float("-inf")):
-            reason = "non_finite_loss"
+            self._non_finite += 1
+            if self._non_finite > self.policy.max_non_finite:
+                reason = "non_finite_loss"
         else:
+            self._non_finite = 0
             self.losses.append(float(loss))
             self._window_invalid |= invalid_output
             self._window_confidence_ok &= confidence_ok
@@ -68,9 +74,9 @@ class DriftMonitor:
                     signal_reason: str | None = None
                     if rolling > self.baseline_loss * self.policy.loss_ratio + self.policy.loss_margin:
                         signal_reason = "loss_window_exceeded"
-                    if f1 is not None and baseline_f1 is not None and (f1 <= baseline_f1 - 0.15 or f1 <= baseline_f1 * 0.80):
+                    if f1 is not None and baseline_f1 is not None and (f1 <= baseline_f1 - self.policy.f1_absolute_drop or f1 <= baseline_f1 * self.policy.f1_relative_floor):
                         signal_reason = signal_reason or "f1_drop"
-                    if val_loss is not None and baseline_val_loss is not None and val_loss > baseline_val_loss * 2.0:
+                    if val_loss is not None and baseline_val_loss is not None and val_loss > baseline_val_loss * self.policy.validation_loss_ratio:
                         signal_reason = signal_reason or "validation_loss_exceeded"
                     if self._window_invalid:
                         signal_reason = signal_reason or "invalid_output"
@@ -92,6 +98,7 @@ class DriftMonitor:
             self.bad_windows = 0
             self.baseline_loss = None
             self.baseline_ema_norm = None
+            self._non_finite = 0
             self.losses.clear()
             self._window_invalid = False
             self._window_confidence_ok = True

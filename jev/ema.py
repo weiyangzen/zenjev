@@ -52,3 +52,38 @@ class EMAState:
         return math.sqrt(sum(float(value.detach().float().pow(2).sum().item())
                              if hasattr(value, "detach") else float(value) ** 2
                              for value in self.values.values()))
+
+    def state_dict(self) -> dict[str, Any]:
+        """Return a serialization-safe copy of the shadow adapter."""
+        out: dict[str, Any] = {}
+        for key, value in self.values.items():
+            out[key] = value.detach().cpu().clone() if hasattr(value, "detach") else float(value)
+        return out
+
+    def restore(self, current: dict[str, Any], values: dict[str, Any], updates: int) -> None:
+        """Restore a checkpointed EMA after validating the live adapter shape.
+
+        EMA tensors are moved to the live parameter device so publication can
+        apply them without an implicit cross-device copy.  The key and shape
+        checks prevent accidentally loading an adapter from another LoRA
+        configuration.
+        """
+        if updates < 0:
+            raise ValueError("EMA update count cannot be negative")
+        if set(current) != set(values):
+            raise ValueError("EMA checkpoint keys do not match adapter parameters")
+        restored: dict[str, Any] = {}
+        for key, live in current.items():
+            value = values[key]
+            if hasattr(live, "detach"):
+                import torch
+                if not hasattr(value, "shape") or value.shape != live.shape:
+                    raise ValueError(f"EMA checkpoint shape mismatch for {key}")
+                value = value.detach().to(device=live.device, dtype=torch.float32).clone()
+                if not torch.isfinite(value).all():
+                    raise ValueError("EMA checkpoint contains non-finite values")
+            elif not math.isfinite(float(value)):
+                raise ValueError("EMA checkpoint contains non-finite values")
+            restored[key] = value
+        self.values = restored
+        self.updates = int(updates)

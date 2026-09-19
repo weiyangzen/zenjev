@@ -44,7 +44,7 @@ class JevRuntime:
         self._infer = infer or self._default_infer
         self._reset = reset
         self._apply_ema = apply_ema
-        self.ema = EMAState()
+        self.ema = EMAState(decay=config.runtime.ema_decay)
         self.stats = RuntimeStats()
         self.monitor = DriftMonitor(config.drift, self._on_reset)
 
@@ -100,7 +100,8 @@ class JevRuntime:
             self.stats.inference_calls += 1
         return {"output": output, "generation": snapshot.generation,
                 "ema_step": snapshot.ema_step, "reset_id": snapshot.reset_id,
-                "checkpoint": snapshot.checkpoint, "schema_digest": self.config.digest(),
+                "checkpoint": snapshot.checkpoint, "schema_digest": self.config.schema.digest(),
+                "config_digest": self.config.digest(),
                 "model_id": self.config.model_id}
 
     def infer(self, text: str) -> Any:
@@ -112,12 +113,31 @@ class JevRuntime:
     def observe_metrics(self, loss: float, lora_state: dict[str, Any] | None = None,
                         **metrics: Any) -> DriftState:
         # Called by the single training writer. No serving model is touched.
+        weights_finite = bool(metrics.pop("weights_finite", True))
         if lora_state:
-            self.ema.update(lora_state)
+            weights_finite = weights_finite and self._state_is_finite(lora_state)
+            # Let the drift gate decide whether a non-finite adapter requires a
+            # reset. EMAState intentionally rejects NaN/Inf, so do not call it
+            # with a corrupt state before the gate has observed the signal.
+            if weights_finite:
+                self.ema.update(lora_state)
         self.stats.training_steps += 1
-        state = self.monitor.observe(loss, self.ema.norm(), **metrics)
+        state = self.monitor.observe(loss, self.ema.norm(), weights_finite=weights_finite, **metrics)
         self.stats.last_drift = state
         return state
+
+    @staticmethod
+    def _state_is_finite(state: dict[str, Any]) -> bool:
+        for value in state.values():
+            if hasattr(value, "detach"):
+                import torch
+                if not bool(torch.isfinite(value.detach()).all()):
+                    return False
+            else:
+                import math
+                if not math.isfinite(float(value)):
+                    return False
+        return True
 
     def set_reset_handler(self, callback: Callable[[str], None]) -> None:
         self._reset = callback

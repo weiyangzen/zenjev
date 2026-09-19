@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import time
+import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -45,23 +47,72 @@ class OpenAICompatibleTeacher:
         self.last_metadata: dict[str, Any] = {}
 
     def label(self, document: SourceDocument) -> dict[str, Any]:
-        key = os.environ.get(self.config.teacher.api_key_env)
-        if not key:
-            raise RuntimeError(f"missing teacher API key environment variable: {self.config.teacher.api_key_env}")
         prompt = {"schema": self.config.schema.as_teacher_contract(), "text": document.text}
         body = json.dumps({"model": self.config.teacher.model, "temperature": self.config.teacher.temperature, "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": "Extract the requested schema. Return exactly one JSON object and no markdown."}, {"role": "user", "content": json.dumps(prompt, ensure_ascii=False)}]}, ensure_ascii=False).encode()
-        request = urllib.request.Request(self.config.teacher.base_url + "/chat/completions", body, {"Content-Type": "application/json", "Authorization": f"Bearer {key}"})
-        with urllib.request.urlopen(request, timeout=self.config.teacher.timeout_s) as response:
-            payload = json.loads(response.read().decode())
+        request_sha = hashlib.sha256(body).hexdigest()
+        cache_path = self._cache_path(request_sha)
+        cache_hit = False
+        payload: dict[str, Any] | None = None
+        if cache_path and cache_path.exists():
+            cached = json.loads(cache_path.read_text(encoding="utf-8"))
+            payload = cached.get("response")
+            cache_hit = isinstance(payload, dict)
+        if payload is None:
+            key = os.environ.get(self.config.teacher.api_key_env)
+            if not key:
+                raise RuntimeError(f"missing teacher API key environment variable: {self.config.teacher.api_key_env}")
+            request = urllib.request.Request(self.config.teacher.base_url + "/chat/completions", body, {"Content-Type": "application/json", "Authorization": f"Bearer {key}"})
+            error: Exception | None = None
+            for attempt in range(self.config.teacher.max_retries + 1):
+                try:
+                    with urllib.request.urlopen(request, timeout=self.config.teacher.timeout_s) as response:
+                        payload = json.loads(response.read().decode())
+                    break
+                except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
+                    error = exc
+                    if attempt >= self.config.teacher.max_retries:
+                        raise RuntimeError(f"teacher request failed after retries: {exc}") from exc
+                    retry_after = 0.0
+                    if isinstance(exc, urllib.error.HTTPError):
+                        try:
+                            retry_after = float(exc.headers.get("Retry-After", 0))
+                        except (TypeError, ValueError):
+                            retry_after = 0.0
+                    time.sleep(max(retry_after, self.config.teacher.retry_backoff_s * (2 ** attempt)))
+            if payload is None:
+                raise RuntimeError(f"teacher request failed: {error}")
+            if cache_path:
+                cache_path.write_text(json.dumps({"request": json.loads(body.decode()), "response": payload, "saved_at": datetime.now(timezone.utc).isoformat()}, ensure_ascii=False), encoding="utf-8")
+                try:
+                    cache_path.chmod(0o600)
+                except OSError:
+                    pass
         content = payload["choices"][0]["message"]["content"]
+        if not isinstance(content, str):
+            raise ValueError("teacher response content must be a JSON string")
         self.last_metadata = {
             "provider": self.config.teacher.provider,
             "model": self.config.teacher.model,
             "response_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
             "prompt_sha256": hashlib.sha256(json.dumps(prompt, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest(),
+            "request_sha256": request_sha,
+            "cache_hit": cache_hit,
+            "cache_path": str(cache_path) if cache_path else None,
             "usage": payload.get("usage", {}),
         }
         return _json_object(content)
+
+    def _cache_path(self, request_sha: str) -> Path | None:
+        root = self.config.teacher.cache_dir
+        if not root:
+            return None
+        path = Path(root)
+        path.mkdir(parents=True, exist_ok=True)
+        try:
+            path.chmod(0o700)
+        except OSError:
+            pass
+        return path / f"{request_sha}.json"
 
 
 def _validate_output(config: JevConfig, output: dict[str, Any]) -> dict[str, Any]:
@@ -115,7 +166,7 @@ def _validate_evidence(config: JevConfig, output: dict[str, Any]) -> None:
         if not isinstance(spans, list):
             raise ValueError(f"evidence for {key!r} must be a list")
         for span in spans:
-            if not isinstance(span, dict) or not isinstance(span.get("text"), str):
+            if not isinstance(span, dict) or not isinstance(span.get("text"), str) or not span.get("text"):
                 raise ValueError("evidence span requires text/start/end")
             start, end = span.get("start"), span.get("end")
             if not isinstance(start, int) or not isinstance(end, int) or start < 0 or end < start:
@@ -194,7 +245,8 @@ def distill(config: JevConfig, output_path: str | Path, teacher: OpenAICompatibl
             for document in iter_source(source):
                 output = _validate_output(config, _attach_or_validate_evidence(teacher.label(document), document.text))
                 teacher_meta = getattr(teacher, "last_metadata", None) or {"provider": config.teacher.provider, "model": config.teacher.model}
-                record = DistilledExample(document.text, output, {"name": document.source_name, "uri": document.uri, "license_note": document.license_note, "content_sha256": hashlib.sha256(document.text.encode()).hexdigest()}, teacher_meta, config.digest(), datetime.now(timezone.utc).isoformat())
+                retrieved_at = datetime.now(timezone.utc).isoformat()
+                record = DistilledExample(document.text, output, {"name": document.source_name, "uri": document.uri, "license_note": document.license_note, "content_sha256": hashlib.sha256(document.text.encode()).hexdigest(), "retrieved_at": retrieved_at}, teacher_meta, config.digest(), retrieved_at)
                 fh.write(json.dumps(record.as_json(), ensure_ascii=False) + "\n")
                 count += 1
     return count

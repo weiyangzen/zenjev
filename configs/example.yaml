@@ -23,6 +23,9 @@ teacher:
   api_key_env: JEV_TEACHER_API_KEY
   timeout_s: 90
   temperature: 0
+  max_retries: 2
+  retry_backoff_s: 1.0
+  cache_dir: runs/jev/teacher-cache
 drift:
   eval_window: 256
   min_windows: 3
@@ -31,6 +34,9 @@ drift:
   ema_norm_ratio: 3.0
   max_non_finite: 0
   reset_cooldown_steps: 100
+  f1_absolute_drop: 0.15
+  f1_relative_floor: 0.80
+  validation_loss_ratio: 2.0
 runtime:
   device: auto
   # Set this to a staged snapshot directory, or use JEV_MODEL_PATH on the host.
@@ -39,5 +45,11 @@ runtime:
   lora_r: 8
   lora_alpha: 16
   lora_dropout: 0.05
+  ema_decay: 0.999
+  learning_rate: 0.0001
+  grad_clip_norm: 1.0
   publish_every_steps: 10
+  checkpoint_every_steps: 10
+  max_checkpoints: 3
+  reset_warmup_steps: 2
   seed: 42

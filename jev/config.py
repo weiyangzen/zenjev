@@ -165,6 +165,9 @@ class TeacherConfig:
     api_key_env: str
     timeout_s: float = 60.0
     temperature: float = 0.0
+    max_retries: int = 2
+    retry_backoff_s: float = 1.0
+    cache_dir: str | None = "runs/jev/teacher-cache"
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "TeacherConfig":
@@ -174,7 +177,13 @@ class TeacherConfig:
         timeout = float(value.get("timeout_s", 60))
         if timeout <= 0:
             raise ConfigError("teacher.timeout_s must be positive")
-        return cls(provider, model, base_url.rstrip("/"), api_key_env, timeout, float(value.get("temperature", 0)))
+        retries = int(value.get("max_retries", 2))
+        backoff = float(value.get("retry_backoff_s", 1.0))
+        if retries < 0 or backoff < 0:
+            raise ConfigError("teacher retries/backoff must be nonnegative")
+        cache = value.get("cache_dir", "runs/jev/teacher-cache")
+        cache = None if cache is None else str(cache)
+        return cls(provider, model, base_url.rstrip("/"), api_key_env, timeout, float(value.get("temperature", 0)), retries, backoff, cache)
 
 
 @dataclass(frozen=True)
@@ -186,11 +195,17 @@ class DriftPolicy:
     ema_norm_ratio: float = 3.0
     max_non_finite: int = 0
     reset_cooldown_steps: int = 100
+    f1_absolute_drop: float = 0.15
+    f1_relative_floor: float = 0.80
+    validation_loss_ratio: float = 2.0
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "DriftPolicy":
         out = cls(**{k: value[k] for k in value if k in cls.__dataclass_fields__})
-        if out.eval_window < 1 or out.min_windows < 1 or out.loss_ratio <= 1 or out.loss_margin < 0 or out.ema_norm_ratio <= 1:
+        if (out.eval_window < 1 or out.min_windows < 1 or out.loss_ratio <= 1 or out.loss_margin < 0
+                or out.ema_norm_ratio <= 1 or out.max_non_finite < 0
+                or out.reset_cooldown_steps < 0 or out.f1_absolute_drop < 0
+                or not 0 < out.f1_relative_floor <= 1 or out.validation_loss_ratio <= 1):
             raise ConfigError("invalid drift policy thresholds")
         return out
 
@@ -205,7 +220,16 @@ class RuntimeConfig:
     lora_r: int = 8
     lora_alpha: float = 16.0
     lora_dropout: float = 0.05
+    # EMA and optimizer safeguards are explicit runtime policy.  Keeping them
+    # in the config makes a checkpoint reproducible and prevents a host-local
+    # default from silently changing an adapter lineage.
+    ema_decay: float = 0.999
+    learning_rate: float = 1e-4
+    grad_clip_norm: float | None = 1.0
     publish_every_steps: int = 10
+    checkpoint_every_steps: int = 10
+    max_checkpoints: int = 3
+    reset_warmup_steps: int = 0
     seed: int = 42
 
 
@@ -230,7 +254,18 @@ class JevConfig:
         revision = str(value.get("model_revision", MODEL_REVISIONS.get(model_id, "")))
         if not re.fullmatch(r"[0-9a-f]{40}", revision):
             raise ConfigError("model_revision must be a frozen 40-character Hub commit SHA")
-        return cls(model_id, UserSchema.from_dict(value.get("schema", {})), sources, TeacherConfig.from_dict(value.get("teacher", {})), DriftPolicy.from_dict(value.get("drift", {})), RuntimeConfig(**{k: value.get("runtime", {}).get(k, v) for k, v in vars(RuntimeConfig()).items()}), revision)
+        runtime = RuntimeConfig(**{k: value.get("runtime", {}).get(k, v) for k, v in vars(RuntimeConfig()).items()})
+        if not 0 < float(runtime.ema_decay) < 1:
+            raise ConfigError("runtime.ema_decay must be between 0 and 1")
+        if runtime.learning_rate <= 0:
+            raise ConfigError("runtime.learning_rate must be positive")
+        if runtime.grad_clip_norm is not None and runtime.grad_clip_norm <= 0:
+            raise ConfigError("runtime.grad_clip_norm must be positive or null")
+        if runtime.publish_every_steps < 1 or runtime.checkpoint_every_steps < 1:
+            raise ConfigError("runtime publish/checkpoint cadence must be positive")
+        if runtime.max_checkpoints < 1 or runtime.reset_warmup_steps < 0:
+            raise ConfigError("runtime max_checkpoints must be positive and reset_warmup_steps nonnegative")
+        return cls(model_id, UserSchema.from_dict(value.get("schema", {})), sources, TeacherConfig.from_dict(value.get("teacher", {})), DriftPolicy.from_dict(value.get("drift", {})), runtime, revision)
 
     def canonical(self) -> dict[str, Any]:
         return {"model_id": self.model_id, "model_revision": self.model_revision, "schema": self.schema.as_teacher_contract(), "sources": [vars(x) for x in self.sources], "teacher": vars(self.teacher), "drift": vars(self.drift), "runtime": vars(self.runtime)}
