@@ -1,0 +1,11 @@
+{
+  "pass": true,
+  "steps": 1,
+  "loss": 5.832126248606073e-07,
+  "checkpoint": "/tmp/jev-official-train/adapter-step-00000001.pt",
+  "ema_updates": 1,
+  "generation": 2,
+  "inference_generation": 2,
+  "model_id": "fastino/gliner2-base-v1",
+  "model_revision": "79c3a777abc572b4767922f3916cf63fb5754df2"
+}
