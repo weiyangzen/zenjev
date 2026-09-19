@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from jev.config import JevConfig
 from jev.distill import distill
@@ -35,4 +38,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
