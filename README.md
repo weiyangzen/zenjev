@@ -51,3 +51,11 @@ The reproducible hardware gate is
 The authoritative implementation plan is
 [`Docs/stage0_zenjev_blueprint.md`](Docs/stage0_zenjev_blueprint.md); research
 notes live under [`Docs/researches/`](Docs/researches/).
+
+For request/response decision analysis, use
+[`configs/jev_tool_task.yaml`](configs/jev_tool_task.yaml). GLiNER2 classifies
+finite task labels and extracts tools/languages/technology spans; Jev's
+allowlist router returns `allow`, `review`, or `reject`. It never executes a
+tool from model output. The existing runtime supports training beside
+inference through immutable EMA snapshots; `ContinuousLoRAStream` provides a
+bounded background queue with explicit backpressure around the trainer.

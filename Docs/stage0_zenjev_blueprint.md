@@ -2,7 +2,7 @@
 
 **Status:** authoritative implementation plan; automated execution controller disabled
 **Authority:** This file is the only mutable requirement/checklist authority for ZenJev. `Docs/researches/**` explains decisions but cannot change checklist state or acceptance. `Docs/stage0_zenjev_blueprint_Gantt.md` is a generated, read-only projection of this file and the durable execution ledgers.
-**Scope:** build the first usable ZenJev pipeline: configurable schema and sources, trusted-teacher distillation, GLiNER2 205M with LoRA continual training, EMA-backed live inference, collapse detection/restart, 5090 validation, public repository publication, and verified transfer to the 5090 host.
+**Scope:** build the first usable ZenJev pipeline: configurable schema and sources, trusted-teacher distillation, GLiNER2 205M with LoRA continual training, EMA-backed live inference, collapse detection/restart, the `jev-tool-task` request/response analyzer with model allowlist and deterministic routing, 5090 validation, public repository publication, and verified transfer to the 5090 host.
 
 ## 1. Frozen repository and execution specification
 
@@ -40,6 +40,9 @@ The repository contract below governs authorized manual implementation. The user
 * **Continual loop:** each accepted labelled/distilled batch updates LoRA, writes a checksum-bound checkpoint, then updates the EMA shadow adapter. EMA is `ema <- beta * ema + (1 - beta) * lora` after each optimizer step; the inference reader uses an atomically swapped, immutable EMA snapshot and never observes a partially written adapter.
 * **Collapse guard:** maintain a frozen baseline evaluation set and a rolling window of labelled/distilled examples. A collapse event is raised when any one of these persists for `consecutive_windows=3`: (a) entity/span F1 falls below baseline by at least `absolute_f1_drop=0.15` or relative drop `0.20`; (b) validation loss exceeds `baseline_loss * 2.0`; (c) NaN/Inf or invalid span/schema output occurs; or (d) confidence calibration/coverage violates the configured floor. One NaN/Inf in weights is immediately terminal. On collapse, stop the adapter update, archive the failing adapter/EMA/optimizer and metrics, reload the immutable base plus a fresh zeroed LoRA and EMA initialized from it, and require a clean warm-up evaluation before resuming. Every reset receives a monotonic `reset_id` and reason.
 * **Inference:** user-supplied schema labels and descriptions constrain extraction. Output is versioned JSON with source span offsets, label, normalized value, confidence, model revision, adapter checkpoint, EMA step, schema digest, and provenance. Unknown labels are rejected or explicitly reported as `unmapped` according to schema policy.
+* **Tool-task contract:** `configs/jev_tool_task.yaml` defines the standard `jev-tool-task` schema. A landing-pool record contains a request and response pair, source URI/hash and the observed provider/model metadata. The observed model is checked against the explicit allowlist before extraction; it is never guessed from response text. Request extraction returns finite `task_type` labels and `task_detail` spans. Response extraction returns `tool`, `programming_language`, `framework`, `technology`, and `model` spans plus `uses_*` relations. Request and response are extracted separately to prevent response leakage into task classification.
+* **Decision boundary:** GLiNER2's classification API can score a finite `task_type` or `decision_route` label set and its multi-task schema can extract records and relations in the same pass. It is a schema-conditioned extractor/classifier, not an autonomous planner or tool executor. `decision_route` is therefore an evidence-bearing candidate label; a deterministic Jev policy verifies model/tool/language/technology allowlists, confidence and evidence, then emits `allow`, `review`, or `reject`. Unknown models, unknown labels, low confidence, missing evidence and policy conflicts never invoke a tool.
+* **Streaming boundary:** the current runtime already trains a private LoRA model while inference reads immutable EMA snapshots; `ContinuousLoRATrainer.train` is a synchronous iterable API. The execution target adds a bounded `submit/stop` stream adapter with one training writer, backpressure and the same atomic publication semantics. A background trainer thread/process is required for a caller that submits records while serving requests.
 * **Distillation:** the operator selects one or more trusted teacher routes (for example GPT-6 Astra or DeepSeek 4.1f) and a user-configured source set. The request contains the schema, source excerpt, provenance, and a strict JSONL contract. Raw request/response, teacher model/revision, timestamp, source hash, prompt/template hash, and validation result are retained in a local, access-controlled cache. Teacher output is never treated as ground truth until schema, span, provenance, duplicate, safety, and confidence checks pass.
 * **Schema:** a user-editable YAML/JSON document defines `schema_id`, version, entity types, descriptions, aliases, normalization, required/optional fields, relations, allowed source domains, language, and unknown-label policy. The schema digest is embedded in every distilled example, checkpoint, inference result, and evaluation report. Changing schema version starts a new adapter/data lineage unless an explicit migration is accepted.
 * **Sources:** a user-editable source manifest lists URLs/files/connectors, retrieval policy, time range, license/terms, parser, inclusion/exclusion filters, and refresh cadence. Retrieval is reproducible and content-addressed; unapproved or unverifiable sources are excluded from distillation.
@@ -111,6 +114,25 @@ The current governance utility only reads the blueprint and atomically renders i
 
 This records a documentation edit only. It is neither an implementation acceptance timestamp nor a task-duration estimate. Checklist items remain unscheduled until their actual timing is recorded.
 
+### 1.4 `jev-tool-task` decision contract
+
+The standard record is deliberately split so response text cannot become an accidental feature of request classification:
+
+```json
+{
+  "schema_version": 1,
+  "request_id": "stable-source-key",
+  "source": {"uri": "user-owned://landing/42", "content_sha256": "...", "retrieved_at": "...", "license": "..."},
+  "observed_model": {"provider": "openai-compatible", "model_id": "gpt-6-astra"},
+  "request": {"text": "Fix the Python parser bug and add a regression test."},
+  "response": {"text": "Use pytest and Python ..."}
+}
+```
+
+Admission rejects an `observed_model` that is absent from the configured allowlist before either text is sent to the extraction path. The request and response are then processed independently with the same versioned schema. The request output contains a finite `task_type` classification and evidence-bearing `task_detail` spans; the response output contains `tool`, `programming_language`, `framework`, `technology`, and `model` spans, typed fields, and `uses_*` relations. A classification schema may additionally expose a finite `decision_route` label set and constraints such as `task_type=coding -> decision_route=local_python`; constraints narrow labels and do not execute anything.
+
+The deterministic router consumes those candidate labels only after checking exact model/tool allowlists, confidence, evidence and conflict rules. It emits `{action: allow|review|reject, reasons: [...]}`. `allow` is an authorization result for a separately implemented tool adapter; GLiNER2 never receives permission to invoke tools, shell commands or model endpoints directly. For the pinned 205M span checkpoint, classification, structured records and relations are supported by the official Schema API. Any constrained-classifier behavior used in production must be tested against the pinned GLiNER2 package and remains subordinate to the Jev policy layer.
+
 ## 2. Acceptance gates
 
 A gate is passable only with recorded evidence in the relevant handoff/manifest and a Master rerun. A worker self-test is provisional.
@@ -126,6 +148,7 @@ A gate is passable only with recorded evidence in the relevant handoff/manifest 
 | G6 5090 | On the designated 5090 host, CUDA/model load/train/infer smoke passes, VRAM stays within budget, p50/p95 latency and throughput are recorded, and no CPU-only result is accepted as the hardware gate. |
 | G7 Delivery | Public GitHub repository URL, commit/branch/visibility and manifest are recorded; remote copy has matching file manifest and runs the remote smoke/5090 checks. |
 | G8 Master completion | All applicable repository validators pass; no `[ ]` or `[_]`, handoff/integration/repair queue is empty; Gantt digest and monitoring index are current and every checklist ID appears exactly once. |
+| G9 Tool-task decision | The standard request/response record, model allowlist, section-aware extraction, finite task/route labels, deterministic router, low-confidence fallback, unknown-model rejection, and replay/golden tests are validated; no model output can directly execute a tool. |
 
 ## 3. Authoritative checklist and DAG
 
@@ -156,6 +179,8 @@ Each row is a stable planned work item, not a live claim. Role names are respons
 - [ ] **ZJ-025** Implement collapse transaction: stop updates, archive failing state, reset LoRA/EMA/optimizer from base, increment reset ID, warm-up gate, and audit event. **Depends on:** ZJ-024,ZJ-020. **Owner:** Training worker. **Owned paths:** `jev/training.py`, `jev/runtime.py`, `tests/test_jev.py`. **Gate:** G5.
 - [ ] **ZJ-026** Implement schema-constrained inference output, span offsets, normalization, confidence, provenance, adapter/EMA metadata, and unmapped-label behavior. **Depends on:** ZJ-010,ZJ-020,ZJ-022. **Owner:** Inference worker. **Owned paths:** `jev/model.py`, `jev/runtime.py`, `tests/test_jev.py`. **Gate:** G1,G4.
 - [ ] **ZJ-027** Integrate source/distillation batches, LoRA training, EMA publication, inference, metrics, and recovery in one deterministic end-to-end harness. **Depends on:** ZJ-014,ZJ-023,ZJ-025,ZJ-026. **Owner:** Master. **Owned paths:** `jev/runtime.py`, `jev/training.py`, `jev/cli.py`, `tests/test_jev.py`, `scripts/smoke.py`. **Gate:** G2,G4,G5.
+- [ ] **ZJ-028** Define the standard `jev-tool-task` schema, versioned request/response contract, and explicit model/tool/language/technology allowlists. **Depends on:** ZJ-026. **Owner:** Schema worker. **Owned paths:** `configs/jev_tool_task.yaml`, `jev/config.py`, `jev/tool_task.py`, `tests/test_model_config_distill.py`. **Gate:** G1,G4,G9.
+- [ ] **ZJ-029** Implement section-aware request/response landing-pool pairing, redaction/provenance metadata, model allowlist admission, and replayable records. **Depends on:** ZJ-011,ZJ-028. **Owner:** Data worker. **Owned paths:** `jev/sources.py`, `jev/tool_task.py`, `configs/jev_tool_task.yaml`, `tests/test_jev.py`. **Gate:** G1,G2,G9.
 
 ### 3.4 Validation, observability, and operator surfaces
 
@@ -164,6 +189,9 @@ Each row is a stable planned work item, not a live claim. Role names are respons
 - [ ] **ZJ-032** Run quality evaluation on held-out human/distilled data, compare base/LoRA/EMA, and publish error/confidence/calibration report. **Depends on:** ZJ-014,ZJ-027. **Owner:** Evaluation worker. **Owned paths:** `artifacts/evaluations/`, `jev/drift.py`, `tests/test_jev.py`. **Gate:** G2,G4,G5.
 - [ ] **ZJ-033** Execute a collapse-and-recovery drill on the 5090 (or a faithful simulator plus one hardware smoke), prove reset thresholds and warm-up gate. **Depends on:** ZJ-025,ZJ-031. **Owner:** Evaluation worker. **Owned paths:** `artifacts/recovery/`, `tests/recovery/`. **Gate:** G5,G6.
 - [ ] **ZJ-034** Audit source/license/provenance, teacher request redaction, secret handling, artifact retention, and schema lineage. **Depends on:** ZJ-011,ZJ-012,ZJ-013,ZJ-014. **Owner:** Master. **Owned paths:** `artifacts/audits/`, `Docs/runbooks/`. **Gate:** G1,G2,G7.
+- [ ] **ZJ-035** Implement request task-type/detail and response tool/language/stack extraction plus finite-label deterministic routing and rejection/review fallback. **Depends on:** ZJ-026,ZJ-028,ZJ-029. **Owner:** Inference worker. **Owned paths:** `jev/model.py`, `jev/tool_task.py`, `jev/runtime.py`, `tests/test_model_config_distill.py`. **Gate:** G4,G9.
+- [ ] **ZJ-036** Add task-to-route golden evaluation, unknown-model/tool rejection, confidence/evidence floors, policy conflict tests, and no-tool-execution assertions. **Depends on:** ZJ-032,ZJ-035. **Owner:** Evaluation worker. **Owned paths:** `artifacts/evaluations/`, `tests/test_jev.py`, `tests/test_model_config_distill.py`. **Gate:** G5,G9.
+- [ ] **ZJ-037** Add a bounded streaming submit/stop adapter around the concurrent trainer/inference snapshots with explicit backpressure and one training writer. **Depends on:** ZJ-023,ZJ-035. **Owner:** Runtime worker. **Owned paths:** `jev/runtime.py`, `jev/training.py`, `tests/test_jev.py`. **Gate:** G4,G9.
 - [ ] **ZJ-040** Provide CLI/API and operator runbook for schema/source selection, distillation, train/serve, metrics, reset, and manifest inspection. **Depends on:** ZJ-010,ZJ-011,ZJ-027. **Owner:** Docs worker. **Owned paths:** `jev/cli.py`, `Docs/runbooks/`, `README.md`, `tests/test_jev.py`. **Gate:** G1,G4,G5.
 - [ ] **ZJ-041** Produce reproducibility bundle: lockfiles, configs, model/data/checkpoint manifests, evaluation reports, and exact validation commands. **Depends on:** ZJ-031,ZJ-032,ZJ-034,ZJ-040. **Owner:** Master. **Owned paths:** `artifacts/repro/`, `Docs/runbooks/`, `requirements*.txt`, `pyproject.toml`. **Gate:** G0,G6,G7.
 

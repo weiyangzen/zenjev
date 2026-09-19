@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import tempfile
+import threading
 import time
 import uuid
 from dataclasses import dataclass
@@ -358,3 +360,66 @@ class ContinuousLoRATrainer:
         finally:
             if os.path.exists(temporary):
                 os.unlink(temporary)
+
+
+class ContinuousLoRAStream:
+    """Bounded background producer for training beside live inference.
+
+    The trainer remains the sole writer of live LoRA/EMA state. ``submit``
+    blocks when the replay queue is full, making backpressure explicit; the
+    runtime's immutable snapshots continue serving inference concurrently.
+    """
+
+    _STOP = object()
+
+    def __init__(self, trainer: ContinuousLoRATrainer, max_queue_size: int = 128):
+        if max_queue_size < 1:
+            raise ValueError("max_queue_size must be positive")
+        self.trainer = trainer
+        self._queue: queue.Queue[Any] = queue.Queue(maxsize=max_queue_size)
+        self._thread: threading.Thread | None = None
+        self._stop_requested = False
+        self._error: BaseException | None = None
+        self.events: list[TrainEvent] = []
+
+    @property
+    def running(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
+
+    def start(self) -> "ContinuousLoRAStream":
+        if self.running or self._thread is not None:
+            raise RuntimeError("stream has already started")
+        self._thread = threading.Thread(target=self._run, name="jev-lora-trainer", daemon=True)
+        self._thread.start()
+        return self
+
+    def submit(self, example: dict[str, Any], *, timeout: float | None = None) -> None:
+        if self._thread is None or self._stop_requested:
+            raise RuntimeError("stream is not accepting examples")
+        self._queue.put(example, timeout=timeout)
+
+    def stop(self, *, wait: bool = True, timeout: float | None = None) -> list[TrainEvent]:
+        if self._thread is None:
+            return list(self.events)
+        self._stop_requested = True
+        self._queue.put(self._STOP, timeout=timeout)
+        if wait:
+            self._thread.join(timeout=timeout)
+            if self._thread.is_alive():
+                raise TimeoutError("timed out waiting for Jev training stream")
+            if self._error is not None:
+                raise RuntimeError("Jev training stream failed") from self._error
+        return list(self.events)
+
+    def _examples(self):
+        while True:
+            item = self._queue.get()
+            if item is self._STOP:
+                return
+            yield item
+
+    def _run(self) -> None:
+        try:
+            self.events = self.trainer.train(self._examples())
+        except BaseException as exc:  # surfaced by stop()
+            self._error = exc

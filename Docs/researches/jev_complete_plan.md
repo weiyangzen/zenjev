@@ -33,6 +33,14 @@ Fastino 的官方模型卡明确将 `fastino/gliner2-base-v1` 标为 **205M 参�
 
 用户示例含中文（“2026 最佳技术栈”）。`gliner2-base-v1` 的公开训练语言是 English；需要中文或混合语言时，配置选择官方 `fastino/gliner2-multi-v1`（约 205M、mDeBERTa-v3-base）并在同一评测协议下比较。GLiNER2 文档还指出 word splitter 必须与训练时一致；中文数据需使用 `char` splitter 或用多语 checkpoint 重新验证，不能只切换分词器后宣称效果等价。
 
+### 2.1.1 `jev-tool-task`：从任务类型到受控路由
+
+GLiNER2 的官方 Schema API 支持文档分类、结构化记录和关系抽取，因此适合把 request/response 落地池压缩成有限的决策特征：request 侧用 `task_type` 分类和 `task_detail` 实体/字段，response 侧用 `tool`、`programming_language`、`framework`、`technology`、`model` 实体以及 `uses_*` 关系。官方教程分别覆盖[分类](https://github.com/fastino-ai/GLiNER2/blob/main/tutorial/1-classification.md)、[JSON/record 抽取](https://github.com/fastino-ai/GLiNER2/blob/main/tutorial/3-json_extraction.md)、[组合 Schema](https://github.com/fastino-ai/GLiNER2/blob/main/tutorial/4-combined.md)和[关系抽取](https://github.com/fastino-ai/GLiNER2/blob/main/tutorial/6-relation_extraction.md)。
+
+这不等于模型可以根据任务类型自由生成并执行决策。GLiNER2 是 schema-conditioned extractor/classifier：它可以在预先定义的有限标签集合中输出 `task_type`、`decision_route`、confidence 和 evidence，但不会成为规划器或工具调用器。Jev 需要在 `configs/jev_tool_task.yaml` 中维护模型、工具、编程语言和技术栈 allowlist；先依据落地记录中的可信 `observed_model` 做精确匹配，再抽取 request 和 response，最后由 `jev.tool_task.resolve_tool_task` 做置信度、证据、冲突和 allowlist 检查。未知模型直接 reject；低置信度或缺少证据进入 review/fallback；只有 policy 输出 `allow` 后，独立工具适配器才有资格执行。
+
+推荐的标准记录是：`request_id`、source URI/hash/retrieved_at/license、observed provider/model、`request.text`、`response.text`。request/response 分开推理，避免 response 泄漏到任务类型；同一个 schema digest 和 adapter/EMA metadata 写入两侧结果。若启用 GLiNER2 分类约束 DSL，应锁定安装版本并增加 implies/excludes 的正负 golden tests；约束只缩小候选标签，Jev policy 仍是最终安全边界。当前 pinned 205M span checkpoint 不应假设 GLiNER2.5 boundary 的 JointIE typed graph 能力。
+
 ### 2.2 LoRA
 
 LoRA 在冻结基础权重上注入低秩可训练矩阵，减少显存、优化器状态和 checkpoint 体积；原始论文是 [LoRA](https://arxiv.org/abs/2106.09685)，可执行 API 和 target-module 约定见 Hugging Face [PEFT LoRA conceptual guide](https://huggingface.co/docs/peft/main/en/conceptual_guides/lora)。GLiNER2 官方训练教程提供了可复现实例：`use_lora=True`、`lora_r=8`、`lora_alpha=16`、`save_adapter_only=True`，并示例将 encoder 与所有 task heads 作为 target。Jev 初始值采用 `r=8, alpha=16, dropout=0.05`，但这些是待基准验证的超参，不是质量保证；Stage 0 应至少比较 `r=8` 与 `r=16`。

@@ -1,0 +1,77 @@
+# Standard Jev tool-task contract. The allowlist is policy input; it is never
+# inferred from model output and unknown models are rejected by the router.
+model_id: fastino/gliner2-base-v1
+model_revision: 79c3a777abc572b4767922f3916cf63fb5754df2
+schema:
+  name: jev_tool_task
+  version: 1
+  language: auto
+  description: Request/response task and technology extraction for Jev routing.
+  entities:
+    task_detail: Detailed request intent, constraint, or required operation.
+    tool: Tool or external service explicitly used in the response.
+    programming_language: Programming language used or recommended in the response.
+    framework: Framework or library used in the response.
+    technology: Important technology or stack component in the response.
+    model: Model named in the request or response.
+  classifications:
+    task_type: [coding, code_review, debugging, research, planning, operations, translation, data_analysis, tool_use, other]
+    decision_route: [allow, review, reject]
+  fields:
+    - {name: request_goal, dtype: str, description: Normalized request goal, required: false}
+    - {name: response_summary, dtype: str, description: Short response outcome, required: false}
+  relations: [uses_tool, uses_language, uses_framework, uses_technology]
+  unknown_label_policy: reject
+  word_splitter: whitespace
+tool_task:
+  name: jev-tool-task
+  version: 1
+  task_types: [coding, code_review, debugging, research, planning, operations, translation, data_analysis, tool_use, other]
+  task_actions:
+    coding: allow
+    code_review: allow
+    debugging: allow
+    research: review
+    planning: review
+    operations: review
+    translation: allow
+    data_analysis: allow
+    tool_use: review
+    other: reject
+  allowed_models:
+    - {id: gpt-6-astra, provider: openai-compatible, aliases: [gpt-6-astra-latest]}
+    - {id: deepseek-4.1f, provider: deepseek-compatible, aliases: [deepseek-chat]}
+  allowed_tools: [python, bash, git, browser, sql, docker]
+  allowed_programming_languages: [Python, JavaScript, TypeScript, Go, Rust, Java, SQL, C++]
+  allowed_technologies: [PyTorch, GLiNER2, PostgreSQL, Docker, Kubernetes, Transformers, PEFT]
+  decision_actions: [allow, review, reject]
+  min_confidence: 0.75
+  unknown_policy: reject
+  require_evidence: true
+sources:
+  - {name: request_response_landing_pool, kind: jsonl, location: data/tool_task_landing.jsonl, license_note: User-owned request/response pool; redact secrets before ingestion., max_documents: 100000}
+teacher:
+  provider: openai-compatible
+  model: gpt-6-astra
+  base_url: https://api.example.invalid/v1
+  api_key_env: JEV_TEACHER_API_KEY
+  timeout_s: 90
+  temperature: 0
+  max_retries: 2
+  retry_backoff_s: 1.0
+  cache_dir: runs/jev/teacher-cache
+runtime:
+  device: auto
+  model_path: null
+  inference_max_length: 512
+  lora_r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  ema_decay: 0.999
+  learning_rate: 0.0001
+  grad_clip_norm: 1.0
+  publish_every_steps: 10
+  checkpoint_every_steps: 10
+  max_checkpoints: 3
+  reset_warmup_steps: 2
+  seed: 42

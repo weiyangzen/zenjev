@@ -7,7 +7,7 @@ from jev.config import ConfigError, DriftPolicy, JevConfig, load_config
 from jev.distill import DistilledExample, distill
 from jev.drift import DriftMonitor
 from jev.runtime import JevRuntime
-from jev.training import ContinuousLoRATrainer
+from jev.training import ContinuousLoRAStream, ContinuousLoRATrainer
 
 
 def cfg(tmp_path: Path) -> JevConfig:
@@ -150,3 +150,36 @@ def test_collapse_archives_state_and_warmup_keeps_old_snapshot(tmp_path):
     trainer.train([{"target": 0.0}, {"target": 0.0}], max_steps=2)
     assert runtime.stats.model_generation == old_generation + 1
     assert not trainer._warmup_pending
+
+
+def test_bounded_stream_trains_while_runtime_remains_available(tmp_path):
+    torch = pytest.importorskip("torch")
+
+    class TinyAdapter(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.base = torch.nn.Parameter(torch.tensor(2.0), requires_grad=False)
+            self.adapter = torch.nn.Parameter(torch.tensor(0.0))
+
+    value = JevConfig.from_dict({
+        "model_id": "fastino/gliner2-base-v1",
+        "schema": {"name": "x", "entities": ["technology"]},
+        "sources": [{"name": "s", "kind": "text", "location": str(tmp_path / "in.txt")}],
+        "teacher": {"provider": "test", "model": "teacher", "base_url": "https://example.invalid/v1", "api_key_env": "KEY"},
+        "runtime": {"checkpoint_every_steps": 100, "publish_every_steps": 1},
+    })
+    runtime = JevRuntime(value, infer=lambda model, text: float(model.adapter.detach().item()))
+    trainer = ContinuousLoRATrainer(
+        value,
+        runtime,
+        lambda model, example: (model.adapter - example["target"]).pow(2),
+        model_factory=TinyAdapter,
+        checkpoint_dir=tmp_path / "run",
+    )
+    stream = ContinuousLoRAStream(trainer, max_queue_size=1).start()
+    stream.submit({"target": 1.0}, timeout=1)
+    stream.submit({"target": 0.0}, timeout=1)
+    events = stream.stop(timeout=5)
+    assert len(events) == 2
+    assert runtime.stats.training_steps == 2
+    assert runtime.infer("x") is not None

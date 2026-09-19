@@ -4,9 +4,9 @@ Generated read-only projection. The sole authority is [stage0_zenjev_blueprint.m
 No implementation acceptance is implied by generating this file.
 
 **Source blueprint:** `Docs/stage0_zenjev_blueprint.md`
-**Source SHA-256:** `7573a5422769e06810a28ffc9a293f18445b0bd1e1c22fab56c42dc6dd395064`
-**Specification SHA-256:** `1351753cb0ea1f2268025b5819bb6253f81340b8af6681d52a9023cc21c6507d`
-**Generated at (UTC):** `2026-09-19T18:35:07Z`
+**Source SHA-256:** `cb37b98bb8df34c2de4fedbc089198305b84b95617c72f178d6f3a5a10804994`
+**Specification SHA-256:** `8504dc5205273a064b17eccca35ef83dcd8dfa6c1e53e596b992f3db015ea1ec`
+**Generated at (UTC):** `2026-09-19T20:31:08Z`
 **Generation command:** `python3 scripts/validate_blueprint.py --generate`
 **Check command:** `python3 scripts/validate_blueprint.py --check`
 
@@ -14,8 +14,8 @@ No implementation acceptance is implied by generating this file.
 
 | Surface | Value |
 |---|---|
-| Checklist items | 28 |
-| Todo / self-tested / Master-accepted | 28 / 0 / 0 |
+| Checklist items | 33 |
+| Todo / self-tested / Master-accepted | 33 / 0 / 0 |
 | Controller | disabled; operator concurrency/lifecycle/route unresolved |
 | Logical claims / service records / admitted executions | not applicable; no controller ledger |
 | Startup reservations / live transports / authenticated goals / running turns | not applicable; no controller ledger |
@@ -62,11 +62,16 @@ The validation-preparation frontier consists of unfinished items; it authorizes 
 | ZJ-025 | todo | ZJ-024,ZJ-020 | Training worker | `jev/training.py`, `jev/runtime.py`, `tests/test_jev.py` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-024,ZJ-020 | Unscheduled | G5 |
 | ZJ-026 | todo | ZJ-010,ZJ-020,ZJ-022 | Inference worker | `jev/model.py`, `jev/runtime.py`, `tests/test_jev.py` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-010,ZJ-020,ZJ-022 | Unscheduled | G1,G4 |
 | ZJ-027 | todo | ZJ-014,ZJ-023,ZJ-025,ZJ-026 | Master | `jev/runtime.py`, `jev/training.py`, `jev/cli.py`, `tests/test_jev.py`, `scripts/smoke.py` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-014,ZJ-023,ZJ-025,ZJ-026 | Unscheduled | G2,G4,G5 |
+| ZJ-028 | todo | ZJ-026 | Schema worker | `configs/jev_tool_task.yaml`, `jev/config.py`, `jev/tool_task.py`, `tests/test_model_config_distill.py` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-026 | Unscheduled | G1,G4,G9 |
+| ZJ-029 | todo | ZJ-011,ZJ-028 | Data worker | `jev/sources.py`, `jev/tool_task.py`, `configs/jev_tool_task.yaml`, `tests/test_jev.py` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-011,ZJ-028 | Unscheduled | G1,G2,G9 |
 | ZJ-030 | todo | ZJ-001,ZJ-020 | Hardware worker | `scripts/validate_5090.py`, `artifacts/hardware/`, `Docs/runbooks/` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-001,ZJ-020 | Unscheduled | G6 |
 | ZJ-031 | todo | ZJ-027,ZJ-030 | Hardware worker | `scripts/smoke_5090.py`, `benchmarks/`, `artifacts/benchmarks/`, `tests/benchmarks/` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-027,ZJ-030 | Unscheduled | G6 |
 | ZJ-032 | todo | ZJ-014,ZJ-027 | Evaluation worker | `artifacts/evaluations/`, `jev/drift.py`, `tests/test_jev.py` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-014,ZJ-027 | Unscheduled | G2,G4,G5 |
 | ZJ-033 | todo | ZJ-025,ZJ-031 | Evaluation worker | `artifacts/recovery/`, `tests/recovery/` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-025,ZJ-031 | Unscheduled | G5,G6 |
 | ZJ-034 | todo | ZJ-011,ZJ-012,ZJ-013,ZJ-014 | Master | `artifacts/audits/`, `Docs/runbooks/` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-011,ZJ-012,ZJ-013,ZJ-014 | Unscheduled | G1,G2,G7 |
+| ZJ-035 | todo | ZJ-026,ZJ-028,ZJ-029 | Inference worker | `jev/model.py`, `jev/tool_task.py`, `jev/runtime.py`, `tests/test_model_config_distill.py` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-026,ZJ-028,ZJ-029 | Unscheduled | G4,G9 |
+| ZJ-036 | todo | ZJ-032,ZJ-035 | Evaluation worker | `artifacts/evaluations/`, `tests/test_jev.py`, `tests/test_model_config_distill.py` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-032,ZJ-035 | Unscheduled | G5,G9 |
+| ZJ-037 | todo | ZJ-023,ZJ-035 | Runtime worker | `jev/runtime.py`, `jev/training.py`, `tests/test_jev.py` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-023,ZJ-035 | Unscheduled | G4,G9 |
 | ZJ-040 | todo | ZJ-010,ZJ-011,ZJ-027 | Docs worker | `jev/cli.py`, `Docs/runbooks/`, `README.md`, `tests/test_jev.py` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-010,ZJ-011,ZJ-027 | Unscheduled | G1,G4,G5 |
 | ZJ-041 | todo | ZJ-031,ZJ-032,ZJ-034,ZJ-040 | Master | `artifacts/repro/`, `Docs/runbooks/`, `requirements*.txt`, `pyproject.toml` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-031,ZJ-032,ZJ-034,ZJ-040 | Unscheduled | G0,G6,G7 |
 | ZJ-042 | todo | ZJ-003,ZJ-027,ZJ-031,ZJ-033,ZJ-041 | Master | `Docs/stage0_zenjev_blueprint.md`, `Docs/stage0_zenjev_blueprint_Gantt.md`, `.zenjev/runtime/` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-003,ZJ-027,ZJ-031,ZJ-033,ZJ-041 | Unscheduled | G0–G8 as applicable |

@@ -187,6 +187,85 @@ class TeacherConfig:
 
 
 @dataclass(frozen=True)
+class AllowedModel:
+    """A model route that the tool-task policy is allowed to select."""
+
+    model_id: str
+    provider: str
+    aliases: tuple[str, ...] = ()
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> "AllowedModel":
+        model_id = str(value.get("id", value.get("model_id", ""))).strip()
+        provider = str(value.get("provider", "")).strip()
+        aliases = tuple(str(item).strip() for item in value.get("aliases", []) if str(item).strip())
+        if not model_id or not provider:
+            raise ConfigError("tool_task.allowed_models entries require id and provider")
+        return cls(model_id, provider, aliases)
+
+
+@dataclass(frozen=True)
+class ToolTaskPolicy:
+    """Standard Jev tool-task extraction and deterministic routing policy."""
+
+    name: str = "jev-tool-task"
+    version: int = 1
+    task_types: tuple[str, ...] = ()
+    task_actions: dict[str, str] = field(default_factory=dict)
+    allowed_models: tuple[AllowedModel, ...] = ()
+    allowed_tools: tuple[str, ...] = ()
+    allowed_programming_languages: tuple[str, ...] = ()
+    allowed_technologies: tuple[str, ...] = ()
+    decision_actions: tuple[str, ...] = ("allow", "review", "reject")
+    min_confidence: float = 0.75
+    unknown_policy: str = "reject"
+    require_evidence: bool = True
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any] | None) -> "ToolTaskPolicy | None":
+        if not value:
+            return None
+        name = str(value.get("name", "jev-tool-task")).strip()
+        version = int(value.get("version", 1))
+        task_types = tuple(str(item).strip() for item in value.get("task_types", []) if str(item).strip())
+        actions = {str(key).strip(): str(item).strip() for key, item in (value.get("task_actions", {}) or {}).items()}
+        models = tuple(AllowedModel.from_dict(item) for item in value.get("allowed_models", []))
+        tools = tuple(str(item).strip() for item in value.get("allowed_tools", []) if str(item).strip())
+        languages = tuple(str(item).strip() for item in value.get("allowed_programming_languages", []) if str(item).strip())
+        technologies = tuple(str(item).strip() for item in value.get("allowed_technologies", []) if str(item).strip())
+        decision_actions = tuple(str(item).strip() for item in value.get("decision_actions", ["allow", "review", "reject"]) if str(item).strip())
+        confidence = float(value.get("min_confidence", 0.75))
+        unknown = str(value.get("unknown_policy", "reject"))
+        if not name or version < 1 or not task_types or not models:
+            raise ConfigError("tool_task requires name, positive version, task_types and allowed_models")
+        if len(set(task_types)) != len(task_types) or len({model.model_id for model in models}) != len(models):
+            raise ConfigError("tool_task task types and allowed model IDs must be unique")
+        if set(actions) - set(task_types) or any(action not in decision_actions for action in actions.values()):
+            raise ConfigError("tool_task.task_actions must map known task types to decision actions")
+        if not 0 <= confidence <= 1 or unknown not in {"reject", "unmapped"}:
+            raise ConfigError("tool_task min_confidence must be in [0,1] and unknown_policy reject|unmapped")
+        if len(set(decision_actions)) != len(decision_actions) or not {"allow", "reject"}.issubset(decision_actions):
+            raise ConfigError("tool_task.decision_actions must include allow and reject")
+        return cls(name, version, task_types, actions, models, tools, languages, technologies, decision_actions, confidence, unknown, bool(value.get("require_evidence", True)))
+
+    def as_contract(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "version": self.version,
+            "task_types": list(self.task_types),
+            "task_actions": self.task_actions,
+            "allowed_models": [{"id": item.model_id, "provider": item.provider, "aliases": list(item.aliases)} for item in self.allowed_models],
+            "allowed_tools": list(self.allowed_tools),
+            "allowed_programming_languages": list(self.allowed_programming_languages),
+            "allowed_technologies": list(self.allowed_technologies),
+            "decision_actions": list(self.decision_actions),
+            "min_confidence": self.min_confidence,
+            "unknown_policy": self.unknown_policy,
+            "require_evidence": self.require_evidence,
+        }
+
+
+@dataclass(frozen=True)
 class DriftPolicy:
     eval_window: int = 256
     min_windows: int = 3
@@ -242,6 +321,7 @@ class JevConfig:
     drift: DriftPolicy = field(default_factory=DriftPolicy)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
     model_revision: str = MODEL_REVISIONS["fastino/gliner2-base-v1"]
+    tool_task: ToolTaskPolicy | None = None
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "JevConfig":
@@ -265,10 +345,10 @@ class JevConfig:
             raise ConfigError("runtime publish/checkpoint cadence must be positive")
         if runtime.max_checkpoints < 1 or runtime.reset_warmup_steps < 0:
             raise ConfigError("runtime max_checkpoints must be positive and reset_warmup_steps nonnegative")
-        return cls(model_id, UserSchema.from_dict(value.get("schema", {})), sources, TeacherConfig.from_dict(value.get("teacher", {})), DriftPolicy.from_dict(value.get("drift", {})), runtime, revision)
+        return cls(model_id, UserSchema.from_dict(value.get("schema", {})), sources, TeacherConfig.from_dict(value.get("teacher", {})), DriftPolicy.from_dict(value.get("drift", {})), runtime, revision, ToolTaskPolicy.from_dict(value.get("tool_task")))
 
     def canonical(self) -> dict[str, Any]:
-        return {"model_id": self.model_id, "model_revision": self.model_revision, "schema": self.schema.as_teacher_contract(), "sources": [vars(x) for x in self.sources], "teacher": vars(self.teacher), "drift": vars(self.drift), "runtime": vars(self.runtime)}
+        return {"model_id": self.model_id, "model_revision": self.model_revision, "schema": self.schema.as_teacher_contract(), "sources": [vars(x) for x in self.sources], "teacher": vars(self.teacher), "drift": vars(self.drift), "runtime": vars(self.runtime), "tool_task": self.tool_task.as_contract() if self.tool_task else None}
 
     def digest(self) -> str:
         return hashlib.sha256(json.dumps(self.canonical(), sort_keys=True, ensure_ascii=False).encode()).hexdigest()

@@ -6,6 +6,7 @@ from jev.config import JevConfig
 from jev.distill import OpenAICompatibleTeacher, _validate_output
 from jev.model import apply_lora, extract, gliner2_step, load_gliner
 from jev.sources import SourceDocument
+from jev.tool_task import classify_task_type, resolve_tool_task
 
 
 def make_config():
@@ -146,3 +147,57 @@ def test_teacher_cache_reuses_strict_json_response(monkeypatch, tmp_path):
     assert teacher.last_metadata["cache_hit"] is True
     assert calls["count"] == 1
     assert list((tmp_path / "teacher-cache").glob("*.json"))
+
+
+def test_tool_task_policy_allowlist_routes_without_executing_tools(tmp_path):
+    config = JevConfig.from_dict({
+        **make_config().canonical(),
+        "tool_task": {
+            "name": "jev-tool-task",
+            "task_types": ["coding", "other"],
+            "task_actions": {"coding": "allow", "other": "reject"},
+            "allowed_models": [{"id": "gpt-6-astra", "provider": "openai-compatible"}],
+            "allowed_tools": ["python"],
+            "decision_actions": ["allow", "review", "reject"],
+            "min_confidence": 0.75,
+        },
+    })
+    assert config.tool_task is not None
+    output = {"task_type": {"label": "coding", "confidence": 0.9}, "entities": {"tool": [{"text": "python", "start": 0, "end": 6}]}}
+    decision = resolve_tool_task(output, config.tool_task, model_id="gpt-6-astra")
+    assert decision["allowed"] is True and decision["action"] == "allow"
+    rejected = resolve_tool_task(output, config.tool_task, model_id="unknown-model")
+    assert rejected["allowed"] is False and "model_not_allowlisted" in rejected["reasons"]
+
+
+def test_tool_task_example_config_loads():
+    config = JevConfig.from_dict(__import__("jev.config", fromlist=["_load_document"])._load_document("configs/jev_tool_task.yaml"))
+    assert config.tool_task is not None
+    assert config.tool_task.name == "jev-tool-task"
+
+
+def test_classify_task_type_uses_finite_policy_labels(monkeypatch):
+    config = JevConfig.from_dict({
+        **make_config().canonical(),
+        "tool_task": {
+            "task_types": ["coding", "other"],
+            "task_actions": {"coding": "allow", "other": "reject"},
+            "allowed_models": [{"id": "gpt-6-astra", "provider": "openai-compatible"}],
+        },
+    })
+    calls = {}
+    class Schema:
+        def single(self, name, labels, **kwargs):
+            calls["schema"] = (name, labels, kwargs)
+            return self
+    class Classifier:
+        def __init__(self, model): pass
+        def classify(self, text, schema, config):
+            calls["text"] = text
+            return {"task_type": {"label": "coding", "confidence": 0.9}}
+    monkeypatch.setitem(sys.modules, "gliner2.classification", types.SimpleNamespace(
+        ClassificationConfig=lambda **kwargs: kwargs, ClassificationSchema=Schema, Classifier=Classifier,
+    ))
+    result = classify_task_type(object(), "fix bug", config.tool_task)
+    assert result["task_type"]["label"] == "coding"
+    assert calls["schema"][1] == ["coding", "other"]
