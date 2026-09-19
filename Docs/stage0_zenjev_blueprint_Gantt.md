@@ -4,9 +4,9 @@ Generated read-only projection. The sole authority is [stage0_zenjev_blueprint.m
 No implementation acceptance is implied by generating this file.
 
 **Source blueprint:** `Docs/stage0_zenjev_blueprint.md`
-**Source SHA-256:** `e4c3cbd917f31d3baa555ebe59c4b4af53495310daaab5ec950b0daadc81d7fd`
+**Source SHA-256:** `1256556cdd4075696f5eef3e42e330bcb514055644407ecc1d4bb106db91af04`
 **Specification SHA-256:** `1351753cb0ea1f2268025b5819bb6253f81340b8af6681d52a9023cc21c6507d`
-**Generated at (UTC):** `2026-09-19T18:10:51Z`
+**Generated at (UTC):** `2026-09-19T18:23:10Z`
 **Generation command:** `python3 scripts/validate_blueprint.py --generate`
 **Check command:** `python3 scripts/validate_blueprint.py --check`
 
@@ -71,7 +71,7 @@ The validation-preparation frontier consists of unfinished items; it authorizes 
 | ZJ-041 | todo | ZJ-031,ZJ-032,ZJ-034,ZJ-040 | Master | `artifacts/repro/`, `Docs/runbooks/`, `requirements*.txt`, `pyproject.toml` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-031,ZJ-032,ZJ-034,ZJ-040 | Unscheduled | G0,G6,G7 |
 | ZJ-042 | todo | ZJ-003,ZJ-027,ZJ-031,ZJ-033,ZJ-041 | Master | `Docs/stage0_zenjev_blueprint.md`, `Docs/stage0_zenjev_blueprint_Gantt.md`, `.zenjev/runtime/` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-003,ZJ-027,ZJ-031,ZJ-033,ZJ-041 | Unscheduled | G0–G8 as applicable |
 | ZJ-043 | todo | ZJ-042 | Master | `.git/`, `artifacts/delivery/github_receipt.json` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-042 | Unscheduled | G7 |
-| ZJ-044 | todo | ZJ-042,ZJ-043 | Hardware worker/Master | `artifacts/delivery/remote_receipt.json`, `artifacts/hardware/remote_*.json` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-042,ZJ-043 | Unscheduled | G6,G7 |
+| ZJ-044 | todo | ZJ-042,ZJ-043 | Hardware worker/Master | `artifacts/delivery/remote_transfer_receipt.json`, `artifacts/hardware/remote_*.json` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-042,ZJ-043 | Unscheduled | G6,G7 |
 | ZJ-045 | todo | ZJ-043,ZJ-044 | Master | `Docs/stage0_zenjev_blueprint.md`, `Docs/stage0_zenjev_blueprint_Gantt.md`, `.zenjev/runtime/` | unclaimed / none | waiting_dependencies | pending | not applicable (controller disabled) | unfinished dependencies: ZJ-043,ZJ-044 | Unscheduled | G8 |
 
 ## Reconciliation
