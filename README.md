@@ -25,6 +25,29 @@ For an offline 5090 deployment, stage the pinned model snapshot and set
 `JEV_MODEL_PATH=/home/sansha/jev-model-base` (or `runtime.model_path`) so model
 loading does not depend on a live Hub connection.
 
+Distillation writes the official GLiNER2 JSONL `input`/`output` contract and
+keeps an access-controlled request/response cache under
+`runs/jev/teacher-cache`; API credentials are never persisted (set
+`teacher.cache_dir: null` to disable it). The
+default trainer consumes those records with GLiNER2's supervised `total_loss`:
+
+```python
+from jev.config import load_config
+from jev.runtime import JevRuntime
+from jev.training import ContinuousLoRATrainer
+
+config = load_config("configs/example.yaml")
+runtime = JevRuntime(config)
+trainer = ContinuousLoRATrainer(config, runtime, checkpoint_dir="runs/jev")
+trainer.train([{"input": "Python", "output": {"entities": {"technology": ["Python"]}}}])
+```
+
+Checkpoints are adapter-only and include optimizer/EMA/config lineage in
+`runs/jev/latest.pt`; collapse resets archive the failed lineage under
+`runs/jev/archives/` and keep the last serving snapshot until warm-up passes.
+The reproducible hardware gate is
+`JEV_MODEL_PATH=/home/sansha/jev-model-base python scripts/smoke_5090.py`.
+
 The authoritative implementation plan is
 [`Docs/stage0_zenjev_blueprint.md`](Docs/stage0_zenjev_blueprint.md); research
 notes live under [`Docs/researches/`](Docs/researches/).
