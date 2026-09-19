@@ -2,11 +2,11 @@
   "host": "192.168.50.38",
   "user": "sansha",
   "destination": "/home/sansha/zenjev",
-  "transferred_at": "2026-09-19T20:14:19Z",
-  "local_manifest_sha256": "4cc96a2239aad769bb6c48796aa11bad7d87e0ebca24ccea43a4e734bec537d8",
-  "remote_manifest_sha256": "4cc96a2239aad769bb6c48796aa11bad7d87e0ebca24ccea43a4e734bec537d8",
+  "transferred_at": "2026-09-19T20:40:14Z",
+  "local_manifest_sha256": "ec7df0a7cd80af93fdc0875b6462ecbff4e250fac4844ed4c50bec55117cc248",
+  "remote_manifest_sha256": "ec7df0a7cd80af93fdc0875b6462ecbff4e250fac4844ed4c50bec55117cc248",
   "manifest_match": true,
-  "source_commit": "87b23450dc87d9d383156300cb6055f1c5e917a5",
+  "source_commit": "46428a7",
   "password_recorded": false,
   "model_snapshot": "/home/sansha/jev-model-base",
   "checks": [
@@ -17,6 +17,7 @@
     "GLiNER2 local snapshot inference smoke (artifacts/nvidia_gpu_model_smoke.json)",
     "JEV_MODEL_PATH=/home/sansha/jev-model-base .venv/bin/python scripts/smoke_nvidia_gpu.py --output artifacts/nvidia_gpu_train_ema_smoke.json",
     "official GLiNER2 total_loss forward/backward smoke",
+    "GLiNER2 decision-choice probability-list smoke (artifacts/nvidia_gpu_decision_choices_smoke.json)",
     "ContinuousLoRATrainer default official supervised loss smoke (artifacts/nvidia_gpu_official_train_smoke.json)"
   ]
 }
