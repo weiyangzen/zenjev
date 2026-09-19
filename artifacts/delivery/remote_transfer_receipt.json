@@ -6,7 +6,7 @@
   "local_manifest_sha256": "ec7df0a7cd80af93fdc0875b6462ecbff4e250fac4844ed4c50bec55117cc248",
   "remote_manifest_sha256": "ec7df0a7cd80af93fdc0875b6462ecbff4e250fac4844ed4c50bec55117cc248",
   "manifest_match": true,
-  "source_commit": "46428a7",
+  "source_commit": "079bd32b189688e64ade6eea90529d2081a3bccf",
   "password_recorded": false,
   "model_snapshot": "/home/sansha/jev-model-base",
   "checks": [
