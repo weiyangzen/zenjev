@@ -1,0 +1,40 @@
+model_id: fastino/gliner2-base-v1
+schema:
+  name: tech_stack_2026
+  description: Technologies explicitly recommended for a 2026 software stack.
+  entities: [technology, company, version, benchmark, date]
+  fields:
+    - {name: recommendation, dtype: str, description: Recommended stack item, required: false}
+    - {name: rationale, dtype: str, description: Evidence-based rationale, required: false}
+  classifications:
+    confidence: [high, medium, low]
+  relations: [recommended_with, maintained_by, replaces]
+sources:
+  - name: local_corpus
+    kind: jsonl
+    location: data/source.jsonl
+    license_note: User-provided corpus; verify redistribution rights.
+    max_documents: 1000
+teacher:
+  provider: openai-compatible
+  model: gpt-6-astra
+  base_url: https://api.example.invalid/v1
+  api_key_env: JEV_TEACHER_API_KEY
+  timeout_s: 90
+  temperature: 0
+drift:
+  eval_window: 256
+  min_windows: 3
+  loss_ratio: 2.0
+  loss_margin: 0.0
+  ema_norm_ratio: 3.0
+  max_non_finite: 0
+  reset_cooldown_steps: 100
+runtime:
+  device: auto
+  inference_max_length: 512
+  lora_r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  publish_every_steps: 10
+  seed: 42

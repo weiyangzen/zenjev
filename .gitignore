@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+.env
+.zenjev/runtime/
+runs/
+data/raw/
+data/cache/
+artifacts/checkpoints/
+*.safetensors
+*.pt
+*.bin
+*.log
+
