@@ -15,6 +15,6 @@
     "python3 -m compileall -q jev scripts",
     ".venv/bin/python scripts/validate_5090.py",
     "GLiNER2 local snapshot inference smoke (artifacts/5090_model_smoke.json)",
-    "LoRA optimizer + EMA + concurrent snapshot inference smoke (artifacts/5090_train_ema_smoke.json)"
+    "JEV_MODEL_PATH=/home/sansha/jev-model-base .venv/bin/python scripts/smoke_5090.py --output artifacts/5090_train_ema_smoke.json"
   ]
 }
