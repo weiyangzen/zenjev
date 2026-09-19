@@ -21,8 +21,10 @@ python -m jev.cli extract --config configs/example.yaml --text '2026最佳技术
 
 `configs/example.yaml` is an example only. Put API keys in the environment
 named by the config; never commit credentials or raw provider responses.
+For an offline 5090 deployment, stage the pinned model snapshot and set
+`JEV_MODEL_PATH=/home/sansha/jev-model-base` (or `runtime.model_path`) so model
+loading does not depend on a live Hub connection.
 
 The authoritative implementation plan is
 [`Docs/stage0_zenjev_blueprint.md`](Docs/stage0_zenjev_blueprint.md); research
 notes live under [`Docs/researches/`](Docs/researches/).
-

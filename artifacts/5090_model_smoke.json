@@ -1,0 +1,92 @@
+{
+  "pass": true,
+  "host": "sansha-DeskMini-Series",
+  "gpu": "NVIDIA GeForce RTX 5090 D",
+  "compute_capability": "12.0",
+  "torch": "2.9.1+cu128",
+  "cuda": "12.8",
+  "model_id": "fastino/gliner2-base-v1",
+  "model_revision": "79c3a777abc572b4767922f3916cf63fb5754df2",
+  "model_path": "/home/sansha/jev-model-base",
+  "base_load_seconds": 1.687118454137817,
+  "inference_seconds": [
+    0.2906429539434612,
+    0.07354257511906326,
+    0.01552764093503356,
+    0.015203227987512946,
+    0.015235760947689414
+  ],
+  "inference_p50_seconds": 0.01552764093503356,
+  "inference_p95_seconds": 0.2906429539434612,
+  "peak_vram_bytes": 868063744,
+  "schema_digest": "08d7a9923e57698d280027695bc49c2d91749f0f26aad5ca946e7503fd5f916a",
+  "result": {
+    "tech_stack_2026": {},
+    "entities": {
+      "technology": [
+        {
+          "text": "Python",
+          "confidence": 0.9997820258140564,
+          "start": 0,
+          "end": 6
+        },
+        {
+          "text": "PostgreSQL",
+          "confidence": 0.9994768500328064,
+          "start": 11,
+          "end": 21
+        }
+      ],
+      "company": [],
+      "version": [],
+      "benchmark": [],
+      "date": [
+        {
+          "text": "2026",
+          "confidence": 0.999147891998291,
+          "start": 40,
+          "end": 44
+        }
+      ]
+    },
+    "confidence": {
+      "label": "high",
+      "confidence": 0.8644324541091919
+    },
+    "relation_extraction": {
+      "recommended_with": [
+        {
+          "head": {
+            "text": "Python",
+            "confidence": 0.6911681294441223,
+            "start": 0,
+            "end": 6
+          },
+          "tail": {
+            "text": "PostgreSQL",
+            "confidence": 0.9439857006072998,
+            "start": 11,
+            "end": 21
+          }
+        }
+      ],
+      "maintained_by": [],
+      "replaces": [
+        {
+          "head": {
+            "text": "Python",
+            "confidence": 0.9099652171134949,
+            "start": 0,
+            "end": 6
+          },
+          "tail": {
+            "text": "PostgreSQL",
+            "confidence": 0.8357738852500916,
+            "start": 11,
+            "end": 21
+          }
+        }
+      ]
+    }
+  }
+}

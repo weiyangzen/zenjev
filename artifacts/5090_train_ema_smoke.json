@@ -1,0 +1,60 @@
+{
+  "pass": true,
+  "steps": 2,
+  "losses": [
+    4.636557946469111e-07,
+    8.049612461036304e-07
+  ],
+  "model_generation": 3,
+  "ema_updates": 2,
+  "inference_generation": 3,
+  "inference_ema_step": 2,
+  "peak_vram_bytes": 2562650112,
+  "result": {
+    "tech_stack_2026": {},
+    "entities": {
+      "technology": [
+        {
+          "text": "Python",
+          "confidence": 0.9999591112136841,
+          "start": 0,
+          "end": 6
+        },
+        {
+          "text": "PostgreSQL",
+          "confidence": 0.9999079704284668,
+          "start": 11,
+          "end": 21
+        }
+      ],
+      "company": [],
+      "version": [],
+      "benchmark": [],
+      "date": []
+    },
+    "confidence": {
+      "label": "high",
+      "confidence": 0.8836692571640015
+    },
+    "relation_extraction": {
+      "recommended_with": [],
+      "maintained_by": [],
+      "replaces": [
+        {
+          "head": {
+            "text": "Python",
+            "confidence": 0.9398043155670166,
+            "start": 0,
+            "end": 6
+          },
+          "tail": {
+            "text": "PostgreSQL",
+            "confidence": 0.910222589969635,
+            "start": 11,
+            "end": 21
+          }
+        }
+      ]
+    }
+  }
+}

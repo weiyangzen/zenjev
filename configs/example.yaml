@@ -1,4 +1,5 @@
 model_id: fastino/gliner2-base-v1
+model_revision: 79c3a777abc572b4767922f3916cf63fb5754df2
 schema:
   name: tech_stack_2026
   description: Technologies explicitly recommended for a 2026 software stack.
@@ -32,6 +33,8 @@ drift:
   reset_cooldown_steps: 100
 runtime:
   device: auto
+  # Set this to a staged snapshot directory, or use JEV_MODEL_PATH on the host.
+  model_path: null
   inference_max_length: 512
   lora_r: 8
   lora_alpha: 16

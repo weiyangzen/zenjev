@@ -38,7 +38,8 @@ class ContinuousLoRATrainer:
         self.checkpoint_dir = Path(checkpoint_dir)
         self.model = self.model_factory()
         self.runtime.set_reset_handler(self._reset_model)
-        self.runtime.publish(self.model, self._state())
+        self.runtime.ema.initialize(self._state())
+        self.runtime.publish(self.model, dict(self.runtime.ema.values), ema_step=0)
         self._optimizer = None
 
     def _state(self) -> dict[str, Any]:
@@ -63,7 +64,8 @@ class ContinuousLoRATrainer:
         self.runtime.stats.reset_id += 1
         self.model = self.model_factory()
         self._optimizer = None
-        self.runtime.publish(self.model, self._state())
+        self.runtime.ema.initialize(self._state())
+        self.runtime.publish(self.model, dict(self.runtime.ema.values), ema_step=0)
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         with (self.checkpoint_dir / "reset-events.jsonl").open("a", encoding="utf-8") as fh:
             fh.write(json.dumps({"reset_id": self.runtime.stats.reset_id, "reason": reason, "step": self.runtime.stats.training_steps}) + "\n")
@@ -82,7 +84,7 @@ class ContinuousLoRATrainer:
                 value = float(loss_obj.detach().item())
                 state = self.runtime.observe_training(value, self._state())
                 if step % self.config.runtime.publish_every_steps == 0 or state.reset_required:
-                    self.runtime.publish(self.model, self._state())
+                    self.runtime.publish(self.model, dict(self.runtime.ema.values), ema_step=self.runtime.ema.updates)
             event = TrainEvent(step, value, self.runtime.stats.model_generation, state.reset_required, state.reason)
             events.append(event)
             if state.reset_required:

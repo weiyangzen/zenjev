@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from jev.config import ConfigError, JevConfig, load_config
+from jev.config import ConfigError, DriftPolicy, JevConfig, load_config
 from jev.distill import DistilledExample, distill
 from jev.drift import DriftMonitor
 from jev.runtime import JevRuntime
@@ -40,8 +40,20 @@ def test_distill_records_provenance(tmp_path):
 
 
 def test_drift_requires_reset_after_nonfinite():
-    monitor = DriftMonitor(value := __import__("jev.config", fromlist=["DriftPolicy"]).DriftPolicy(eval_window=2, min_windows=1, reset_cooldown_steps=1))
+    monitor = DriftMonitor(DriftPolicy(eval_window=2, min_windows=1, reset_cooldown_steps=1))
     assert monitor.observe(float("nan"), 1).reset_required
+
+
+def test_drift_resets_after_three_bad_windows():
+    monitor = DriftMonitor(DriftPolicy(eval_window=2, min_windows=3, loss_ratio=2.0, reset_cooldown_steps=1))
+    for _ in range(2):
+        monitor.observe(1.0, 1.0)
+    for window in range(3):
+        state = None
+        for _ in range(2):
+            state = monitor.observe(3.0, 1.0)
+    assert state is not None and state.reset_required and state.reason == "loss_window_exceeded"
+    assert state.resets == 1
 
 
 def test_runtime_publishes_and_infers():

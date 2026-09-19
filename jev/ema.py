@@ -2,38 +2,53 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import MutableMapping
+from typing import Any
 
 
 @dataclass
 class EMAState:
-    """Numerically stable exponential moving average for LoRA tensors/metrics."""
-
+    """EMA of adapter parameters only. Initialize once, update once per step."""
     decay: float = 0.999
-    values: MutableMapping[str, object] = field(default_factory=dict)
+    values: dict[str, Any] = field(default_factory=dict)
     updates: int = 0
 
     def __post_init__(self) -> None:
         if not 0 < self.decay < 1:
             raise ValueError("EMA decay must be between 0 and 1")
 
-    def update(self, current: MutableMapping[str, object]) -> None:
-        self.updates += 1
+    @staticmethod
+    def _clone(value: Any) -> Any:
+        return value.detach().float().clone() if hasattr(value, "detach") else float(value)
+
+    def initialize(self, current: dict[str, Any]) -> None:
+        self.values = {key: self._clone(value) for key, value in current.items()}
+        self.updates = 0
+        self._validate(current)
+
+    def _validate(self, current: dict[str, Any]) -> None:
+        if set(current) != set(self.values):
+            raise ValueError("EMA adapter parameter keys changed")
         for key, value in current.items():
-            old = self.values.get(key)
-            if old is None:
-                self.values[key] = value.detach().clone() if hasattr(value, "detach") else value
-            elif hasattr(value, "detach") and hasattr(old, "mul_"):
-                old.mul_(self.decay).add_(value.detach(), alpha=1 - self.decay)
+            if hasattr(value, "detach"):
+                import torch
+                if value.shape != self.values[key].shape or not torch.isfinite(value).all():
+                    raise ValueError("EMA requires finite tensors with unchanged shapes")
+            elif not math.isfinite(float(value)):
+                raise ValueError("EMA requires finite values")
+
+    def update(self, current: dict[str, Any]) -> None:
+        if not self.values:
+            self.initialize(current)
+        self._validate(current)
+        for key, value in current.items():
+            old = self.values[key]
+            if hasattr(value, "detach"):
+                old.mul_(self.decay).add_(value.detach().float(), alpha=1 - self.decay)
             else:
                 self.values[key] = self.decay * old + (1 - self.decay) * value
+        self.updates += 1
 
     def norm(self) -> float:
-        total = 0.0
-        for value in self.values.values():
-            if hasattr(value, "detach"):
-                total += float(value.detach().float().pow(2).sum().item())
-            else:
-                total += float(value) ** 2
-        return math.sqrt(total)
-
+        return math.sqrt(sum(float(value.detach().float().pow(2).sum().item())
+                             if hasattr(value, "detach") else float(value) ** 2
+                             for value in self.values.values()))
