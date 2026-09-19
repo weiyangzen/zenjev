@@ -39,6 +39,7 @@ class SchemaField:
     dtype: str = "str"
     description: str = ""
     required: bool = False
+    aliases: tuple[str, ...] = ()
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "SchemaField":
@@ -48,7 +49,8 @@ class SchemaField:
         dtype = str(value.get("dtype", "str"))
         if dtype not in {"str", "int", "float", "bool", "list", "object"}:
             raise ConfigError(f"unsupported field dtype: {dtype}")
-        return cls(name, dtype, str(value.get("description", "")), bool(value.get("required", False)))
+        aliases = tuple(str(x).strip() for x in value.get("aliases", []) if str(x).strip())
+        return cls(name, dtype, str(value.get("description", "")), bool(value.get("required", False)), aliases)
 
 
 @dataclass(frozen=True)
@@ -59,6 +61,9 @@ class UserSchema:
     fields: tuple[SchemaField, ...] = ()
     classifications: dict[str, tuple[str, ...]] = field(default_factory=dict)
     relations: tuple[str, ...] = ()
+    version: int = 1
+    language: str = "auto"
+    unknown_label_policy: str = "reject"
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "UserSchema":
@@ -74,11 +79,19 @@ class UserSchema:
         relations = tuple(str(x).strip() for x in value.get("relations", []) if str(x).strip())
         if not entities and not fields and not classifications and not relations:
             raise ConfigError("schema must define entities, fields, classifications or relations")
-        return cls(name, str(value.get("description", "")), entities, fields, classifications, relations)
+        version = int(value.get("version", 1))
+        language = str(value.get("language", "auto"))
+        unknown = str(value.get("unknown_label_policy", "reject"))
+        if version < 1 or unknown not in {"reject", "unmapped"}:
+            raise ConfigError("schema.version must be positive and unknown_label_policy must be reject|unmapped")
+        return cls(name, str(value.get("description", "")), entities, fields, classifications, relations, version, language, unknown)
 
     def as_teacher_contract(self) -> dict[str, Any]:
         return {
             "name": self.name,
+            "version": self.version,
+            "language": self.language,
+            "unknown_label_policy": self.unknown_label_policy,
             "description": self.description,
             "entities": list(self.entities),
             "fields": [vars(x) for x in self.fields],

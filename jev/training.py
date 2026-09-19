@@ -74,14 +74,15 @@ class ContinuousLoRATrainer:
         for step, example in enumerate(examples, start=1):
             if max_steps is not None and step > max_steps:
                 break
-            optimizer.zero_grad(set_to_none=True)
-            loss_obj = self.step_fn(self.model, example)
-            loss_obj.backward()
-            optimizer.step()
-            value = float(loss_obj.detach().item())
-            state = self.runtime.observe_training(value, self._state())
-            if step % self.config.runtime.publish_every_steps == 0 or state.reset_required:
-                self.runtime.publish(self.model, self._state())
+            with self.runtime.training_transaction():
+                optimizer.zero_grad(set_to_none=True)
+                loss_obj = self.step_fn(self.model, example)
+                loss_obj.backward()
+                optimizer.step()
+                value = float(loss_obj.detach().item())
+                state = self.runtime.observe_training(value, self._state())
+                if step % self.config.runtime.publish_every_steps == 0 or state.reset_required:
+                    self.runtime.publish(self.model, self._state())
             event = TrainEvent(step, value, self.runtime.stats.model_generation, state.reset_required, state.reason)
             events.append(event)
             if state.reset_required:

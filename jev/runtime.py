@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -51,6 +52,12 @@ class JevRuntime:
                 if self._apply_ema:
                     self._apply_ema(model, dict(self.ema.values))
             self.stats.model_generation += 1
+
+    @contextmanager
+    def training_transaction(self):
+        """Keep inference from observing an in-flight optimizer mutation."""
+        with self._lock:
+            yield
 
     def infer(self, text: str) -> Any:
         with self._lock:
