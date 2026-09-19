@@ -65,6 +65,15 @@ def test_extract_builds_gliner_schema(monkeypatch):
     assert kwargs["include_spans"] is True
 
 
+def test_extract_normalizes_decoder_structure_types():
+    class Model:
+        def extract(self, text, schema, **kwargs):
+            return {"tech": [{"year": "2026"}]}
+
+    result = extract(Model(), make_config(), "text")
+    assert result["tech"][0]["year"] == 2026
+
+
 def test_load_gliner_uses_staged_snapshot_without_hub_revision(monkeypatch, tmp_path):
     staged = tmp_path / "gliner2-base"
     staged.mkdir()
