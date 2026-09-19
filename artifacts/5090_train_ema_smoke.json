@@ -1,40 +1,40 @@
 {
   "pass": true,
   "gpu": "NVIDIA GeForce RTX 5090 D",
-  "base_load_seconds": 2.7254922799766064,
+  "base_load_seconds": 2.7222123129758984,
   "steps": 2,
   "losses": [
-    0.027339108288288116,
-    0.02710222266614437
+    0.027296157553792,
+    0.027059558779001236
   ],
   "model_generation": 3,
   "ema_updates": 2,
   "inference_calls": 4,
   "inference_observations": [
     {
-      "seconds": 0.6859341878443956,
+      "seconds": 0.6802396839484572,
       "generation": 1,
       "ema_step": 0
     },
     {
-      "seconds": 0.23815496894530952,
+      "seconds": 0.2275397030171007,
       "generation": 2,
       "ema_step": 1
     },
     {
-      "seconds": 0.018422750988975167,
+      "seconds": 0.018769041867926717,
       "generation": 3,
       "ema_step": 2
     },
     {
-      "seconds": 0.01579868793487549,
+      "seconds": 0.01607079617679119,
       "generation": 3,
       "ema_step": 2
     }
   ],
-  "inference_p50_seconds": 0.23815496894530952,
+  "inference_p50_seconds": 0.2275397030171007,
   "errors": [],
-  "peak_vram_bytes": 3283473408,
+  "peak_vram_bytes": 3273968640,
   "result": {
     "tech_stack_2026": [
       {

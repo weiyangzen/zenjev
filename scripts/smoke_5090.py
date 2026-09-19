@@ -58,7 +58,7 @@ def main() -> int:
         runtime,
         step_fn,
         model_factory=lambda: model,
-        checkpoint_dir=Path(args.output).parent / ".smoke-checkpoints",
+        checkpoint_dir=Path("/tmp/jev-5090-smoke-checkpoints"),
     )
     observations: list[dict[str, int | float]] = []
     errors: list[str] = []
