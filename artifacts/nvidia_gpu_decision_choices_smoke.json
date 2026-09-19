@@ -1,0 +1,123 @@
+{
+  "raw": {
+    "decision_choice": {
+      "value": [
+        "PostgreSQL"
+      ],
+      "confidence": 0.9333962487887804,
+      "probabilities": {
+        "PyTorch": 0.05474378993392785,
+        "GLiNER2": 6.878182603796035e-05,
+        "PostgreSQL": 0.833212338076829,
+        "Docker": 6.423691517119412e-05,
+        "Kubernetes": 1.1830710457445604e-05,
+        "Transformers": 8.916452008657658e-06,
+        "PEFT": 3.4733580748982156e-05,
+        "Python": 0.4527607797297438,
+        "JavaScript": 2.1652192315731908e-05,
+        "TypeScript": 7.009290541721594e-06,
+        "Go": 1.655616177013986e-05,
+        "Rust": 5.658063465357648e-06,
+        "Java": 0.00013399834074096994,
+        "SQL": 0.07488412710342236,
+        "C++": 1.9279109961815294e-05,
+        "python": 0.3676897502301021,
+        "bash": 0.00012247564842406654,
+        "git": 0.00010925981413832362,
+        "browser": 1.5736617353709094e-05,
+        "docker": 2.2479598676836563e-05
+      }
+    },
+    "_meta": {
+      "feasible": true,
+      "decoder": "independent",
+      "exact": true,
+      "objective": 0.5099547107673152,
+      "violations": []
+    }
+  },
+  "decision_choices": [
+    {
+      "choice": "PostgreSQL",
+      "probability": 0.833212338076829
+    },
+    {
+      "choice": "Python",
+      "probability": 0.4527607797297438
+    },
+    {
+      "choice": "python",
+      "probability": 0.3676897502301021
+    },
+    {
+      "choice": "SQL",
+      "probability": 0.07488412710342236
+    },
+    {
+      "choice": "PyTorch",
+      "probability": 0.05474378993392785
+    },
+    {
+      "choice": "Java",
+      "probability": 0.00013399834074096994
+    },
+    {
+      "choice": "bash",
+      "probability": 0.00012247564842406654
+    },
+    {
+      "choice": "git",
+      "probability": 0.00010925981413832362
+    },
+    {
+      "choice": "GLiNER2",
+      "probability": 6.878182603796035e-05
+    },
+    {
+      "choice": "Docker",
+      "probability": 6.423691517119412e-05
+    },
+    {
+      "choice": "PEFT",
+      "probability": 3.4733580748982156e-05
+    },
+    {
+      "choice": "docker",
+      "probability": 2.2479598676836563e-05
+    },
+    {
+      "choice": "JavaScript",
+      "probability": 2.1652192315731908e-05
+    },
+    {
+      "choice": "C++",
+      "probability": 1.9279109961815294e-05
+    },
+    {
+      "choice": "Go",
+      "probability": 1.655616177013986e-05
+    },
+    {
+      "choice": "browser",
+      "probability": 1.5736617353709094e-05
+    },
+    {
+      "choice": "Kubernetes",
+      "probability": 1.1830710457445604e-05
+    },
+    {
+      "choice": "Transformers",
+      "probability": 8.916452008657658e-06
+    },
+    {
+      "choice": "TypeScript",
+      "probability": 7.009290541721594e-06
+    },
+    {
+      "choice": "Rust",
+      "probability": 5.658063465357648e-06
+    }
+  ],
+  "action": "allow",
+  "allowed": true
+}

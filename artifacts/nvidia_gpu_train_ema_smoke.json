@@ -1,45 +1,47 @@
 {
   "pass": true,
   "gpu": "NVIDIA GPU",
-  "base_load_seconds": 2.7525563561357558,
+  "gpu_capability": "12.0",
+  "gpu_memory_bytes": 33670758400,
+  "base_load_seconds": 2.722410097019747,
   "steps": 2,
   "losses": [
-    0.027402007952332497,
-    0.027164822444319725
+    0.027350354939699173,
+    0.027113471180200577
   ],
   "model_generation": 3,
   "ema_updates": 2,
   "inference_calls": 4,
   "inference_observations": [
     {
-      "seconds": 0.6656210769433528,
+      "seconds": 0.6763759669847786,
       "generation": 1,
       "ema_step": 0
     },
     {
-      "seconds": 0.2208171661477536,
+      "seconds": 0.2193380370736122,
       "generation": 2,
       "ema_step": 1
     },
     {
-      "seconds": 0.018572784960269928,
+      "seconds": 0.018170529045164585,
       "generation": 3,
       "ema_step": 2
     },
     {
-      "seconds": 0.016029685037210584,
+      "seconds": 0.015966979088261724,
       "generation": 3,
       "ema_step": 2
     }
   ],
-  "inference_p50_seconds": 0.2208171661477536,
-  "inference_p95_seconds": 0.2208171661477536,
-  "inference_throughput_per_second": 4.342913340482566,
-  "training_seconds": 0.8352975030429661,
-  "training_steps_per_second": 2.3943564930028574,
-  "nvidia_smi_temperature_power": "47, 85.22 W",
+  "inference_p50_seconds": 0.2193380370736122,
+  "inference_p95_seconds": 0.2193380370736122,
+  "inference_throughput_per_second": 4.301762106695212,
+  "training_seconds": 0.8448607970494777,
+  "training_steps_per_second": 2.3672538801476355,
+  "nvidia_smi_temperature_power": "53, 84.71 W",
   "errors": [],
-  "peak_vram_bytes": 2573521408,
+  "peak_vram_bytes": 2572833280,
   "result": {
     "tech_stack_2026": [
       {
