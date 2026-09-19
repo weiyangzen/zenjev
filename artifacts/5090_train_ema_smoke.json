@@ -1,71 +1,31 @@
 {
   "pass": true,
-  "base_load_seconds": 2.7001406450290233,
   "steps": 2,
   "losses": [
-    0.027365408837795258,
-    0.02712848223745823
+    0.027415797114372253,
+    0.027178578078746796
   ],
   "model_generation": 3,
   "ema_updates": 2,
-  "inference_generation": 3,
-  "inference_ema_step": 2,
-  "peak_vram_bytes": 2543120384,
-  "result": {
-    "tech_stack_2026": [
-      {
-        "recommendation": {
-          "text": "PostgreSQL",
-          "confidence": 0.7150553464889526,
-          "start": 21,
-          "end": 31
-        },
-        "rationale": null
-      }
-    ],
-    "entities": {
-      "technology": [
-        {
-          "text": "PostgreSQL",
-          "confidence": 0.9991069436073303,
-          "start": 21,
-          "end": 31
-        },
-        {
-          "text": "Python",
-          "confidence": 0.9977557063102722,
-          "start": 12,
-          "end": 18
-        }
-      ],
-      "company": [],
-      "version": [],
-      "benchmark": [],
-      "date": []
+  "inference_calls": 4,
+  "inference_observations": [
+    {
+      "generation": 1,
+      "ema_step": 0
     },
-    "confidence": {
-      "label": "high",
-      "confidence": 0.9999997615814209
+    {
+      "generation": 2,
+      "ema_step": 1
     },
-    "relation_extraction": {
-      "recommended_with": [
-        {
-          "head": {
-            "text": "Python",
-            "confidence": 0.6338732838630676,
-            "start": 12,
-            "end": 18
-          },
-          "tail": {
-            "text": "PostgreSQL",
-            "confidence": 0.9752973914146423,
-            "start": 21,
-            "end": 31
-          }
-        }
-      ],
-      "maintained_by": [],
-      "replaces": []
+    {
+      "generation": 3,
+      "ema_step": 2
+    },
+    {
+      "generation": 3,
+      "ema_step": 2
     }
-  }
+  ],
+  "errors": [],
+  "peak_vram_bytes": 3241707008
 }
