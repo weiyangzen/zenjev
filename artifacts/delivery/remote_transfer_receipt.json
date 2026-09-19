@@ -2,15 +2,19 @@
   "host": "192.168.50.38",
   "user": "sansha",
   "destination": "/home/sansha/zenjev",
-  "transferred_at": "2026-09-19T18:05:05.360125+00:00",
-  "local_manifest_sha256": "107d664ac3ea6506372dc8d82c2cf8de7e998370bddef8a4a87f362119ed23b9",
-  "remote_manifest_sha256": "107d664ac3ea6506372dc8d82c2cf8de7e998370bddef8a4a87f362119ed23b9",
+  "transferred_at": "2026-09-19T18:23:31Z",
+  "local_manifest_sha256": "f56768a79d956608a542450a6648a39409e1ccca1beceda63f5ef82c31fc9254",
+  "remote_manifest_sha256": "f56768a79d956608a542450a6648a39409e1ccca1beceda63f5ef82c31fc9254",
   "manifest_match": true,
-  "git_commit": "032629ba02132b8ed65e84c805cf41e6edb60c4d",
+  "source_commit": "ee88d16002c4c310ff33454eeb8536b9d4beb1dd",
   "password_recorded": false,
+  "model_snapshot": "/home/sansha/jev-model-base",
   "checks": [
+    "python3 scripts/validate_blueprint.py --check",
     "python3 scripts/smoke.py",
-    "python3 scripts/validate_blueprint.py",
-    "python3 scripts/validate_5090.py (expected dependency failure until ML extras installed)"
+    "python3 -m compileall -q jev scripts",
+    ".venv/bin/python scripts/validate_5090.py",
+    "GLiNER2 local snapshot inference smoke (artifacts/5090_model_smoke.json)",
+    "LoRA optimizer + EMA + concurrent snapshot inference smoke (artifacts/5090_train_ema_smoke.json)"
   ]
 }
