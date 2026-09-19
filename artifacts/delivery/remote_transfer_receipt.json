@@ -1,0 +1,16 @@
+{
+  "host": "192.168.50.38",
+  "user": "sansha",
+  "destination": "/home/sansha/zenjev",
+  "transferred_at": "2026-09-19T18:04:21.188224+00:00",
+  "local_manifest_sha256": "1418b38d898a353957f1e8e30e7b8b79a00390f45926bb16f48265c93bc29ad6",
+  "remote_manifest_sha256": "1418b38d898a353957f1e8e30e7b8b79a00390f45926bb16f48265c93bc29ad6",
+  "manifest_match": true,
+  "git_commit": "0a3ccc9fa619d368c0fdae2819037f0fa663ba10",
+  "password_recorded": false,
+  "checks": [
+    "python3 scripts/smoke.py",
+    "python3 scripts/validate_blueprint.py",
+    "python3 scripts/validate_5090.py (expected dependency failure until ML extras installed)"
+  ]
+}
