@@ -12,6 +12,11 @@ from typing import Any, Iterable
 from .config import JevConfig, ToolTaskPolicy
 
 
+def _as_classifier(model: Any, classifier_type: Any) -> Any:
+    """Accept either a GLiNER2 base model or an already-built Classifier."""
+    return model if hasattr(model, "classify") else classifier_type(model)
+
+
 def classify_task_type(model: Any, text: str, policy: ToolTaskPolicy) -> dict[str, Any]:
     """Run GLiNER2's document classifier over the finite task-type labels."""
     try:
@@ -19,7 +24,7 @@ def classify_task_type(model: Any, text: str, policy: ToolTaskPolicy) -> dict[st
     except ImportError as exc:
         raise RuntimeError("GLiNER2 classification support is unavailable") from exc
     schema = ClassificationSchema().single("task_type", list(policy.task_types), threshold=policy.min_confidence)
-    classifier = Classifier(model)
+    classifier = _as_classifier(model, Classifier)
     result = classifier.classify(text, schema, config=ClassificationConfig(include_confidence=True))
     return result.to_dict() if hasattr(result, "to_dict") else result
 
@@ -45,7 +50,7 @@ def classify_decision_choices(model: Any, text: str, policy: ToolTaskPolicy) -> 
         max_labels=len(policy.decision_choices),
         threshold=policy.min_confidence,
     )
-    classifier = Classifier(model)
+    classifier = _as_classifier(model, Classifier)
     result = classifier.classify(text, schema, config=ClassificationConfig(include_confidence=True))
     return result.to_dict() if hasattr(result, "to_dict") else result
 
