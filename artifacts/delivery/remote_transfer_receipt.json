@@ -2,11 +2,11 @@
   "host": "192.168.50.38",
   "user": "sansha",
   "destination": "/home/sansha/zenjev",
-  "transferred_at": "2026-09-19T18:35:24Z",
-  "local_manifest_sha256": "922cd734e1f8560241e658af895725b0405a4c447822f2a8c3f86c3c76c32e20",
-  "remote_manifest_sha256": "922cd734e1f8560241e658af895725b0405a4c447822f2a8c3f86c3c76c32e20",
+  "transferred_at": "2026-09-19T18:46:52Z",
+  "local_manifest_sha256": "067a575b5c00644e9b610d5cfb88427c5949e2c1f14e0ab7c54a2407995686a0",
+  "remote_manifest_sha256": "067a575b5c00644e9b610d5cfb88427c5949e2c1f14e0ab7c54a2407995686a0",
   "manifest_match": true,
-  "source_commit": "0f0109088e9c52cb8c976ef8af04cd9d2dadbf00",
+  "source_commit": "552a5178fe5b0a76f0cfd87ee2ab23da1fa8c778",
   "password_recorded": false,
   "model_snapshot": "/home/sansha/jev-model-base",
   "checks": [
@@ -15,6 +15,7 @@
     "python3 -m compileall -q jev scripts",
     ".venv/bin/python scripts/validate_5090.py",
     "GLiNER2 local snapshot inference smoke (artifacts/5090_model_smoke.json)",
-    "JEV_MODEL_PATH=/home/sansha/jev-model-base .venv/bin/python scripts/smoke_5090.py --output artifacts/5090_train_ema_smoke.json"
+    "JEV_MODEL_PATH=/home/sansha/jev-model-base .venv/bin/python scripts/smoke_5090.py --output artifacts/5090_train_ema_smoke.json",
+    "official GLiNER2 total_loss forward/backward smoke"
   ]
 }
