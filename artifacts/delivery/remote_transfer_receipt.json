@@ -2,22 +2,29 @@
   "host": "192.168.50.38",
   "user": "sansha",
   "destination": "/home/sansha/zenjev",
-  "transferred_at": "2026-09-19T20:40:14Z",
-  "local_manifest_sha256": "ec7df0a7cd80af93fdc0875b6462ecbff4e250fac4844ed4c50bec55117cc248",
-  "remote_manifest_sha256": "ec7df0a7cd80af93fdc0875b6462ecbff4e250fac4844ed4c50bec55117cc248",
+  "transferred_at": "2026-09-20T21:13:54Z",
+  "local_manifest_sha256": "4f53999bde1cfc6e4ec2c451835b0a92db7ab74ab71f3370a5807df8fa181d51",
+  "remote_manifest_sha256": "4f53999bde1cfc6e4ec2c451835b0a92db7ab74ab71f3370a5807df8fa181d51",
   "manifest_match": true,
-  "source_commit": "079bd32b189688e64ade6eea90529d2081a3bccf",
+  "manifest_files": 91,
+  "source_commit": "69477591a4102804deee16f1b55cf8ff14c7aac9",
   "password_recorded": false,
   "model_snapshot": "/home/sansha/jev-model-base",
+  "transport": "rsync -a --delete (same-host authenticated session; excludes .git, .venv, runs, mq/target, caches, delivery receipts)",
   "checks": [
     "python3 scripts/validate_blueprint.py --check",
     "python3 scripts/smoke.py",
-    "python3 -m compileall -q jev scripts",
-    ".venv/bin/python scripts/validate_nvidia_gpu.py",
-    "GLiNER2 local snapshot inference smoke (artifacts/nvidia_gpu_model_smoke.json)",
-    "JEV_MODEL_PATH=/home/sansha/jev-model-base .venv/bin/python scripts/smoke_nvidia_gpu.py --output artifacts/nvidia_gpu_train_ema_smoke.json",
-    "official GLiNER2 total_loss forward/backward smoke",
-    "GLiNER2 decision-choice probability-list smoke (artifacts/nvidia_gpu_decision_choices_smoke.json)",
-    "ContinuousLoRATrainer default official supervised loss smoke (artifacts/nvidia_gpu_official_train_smoke.json)"
-  ]
+    "python3 -m compileall -q jev scripts benchmarks",
+    ".venv/bin/python scripts/validate_nvidia_gpu.py --output artifacts/hardware/remote_nvidia_gpu_environment.json",
+    "JEV_MODEL_PATH=/home/sansha/jev-model-base .venv/bin/python scripts/smoke_nvidia_gpu.py --output artifacts/hardware/remote_nvidia_gpu_train_ema_smoke.json",
+    "cargo build --locked && cargo test --locked in mq/",
+    "JEV_MQ_BRIDGE_BIN=<remote binary> .venv/bin/python scripts/smoke_mq.py (evidence copied to artifacts/mq/remote_mq_smoke.json)"
+  ],
+  "remote_evidence": [
+    "artifacts/hardware/remote_nvidia_gpu_environment.json",
+    "artifacts/hardware/remote_nvidia_gpu_train_ema_smoke.json",
+    "artifacts/mq/remote_mq_smoke.json"
+  ],
+  "live_broker_soak": false,
+  "live_broker_soak_note": "operator waived the live external-broker soak; remote MQ evidence is the mock-adapter smoke"
 }

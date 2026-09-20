@@ -1,11 +1,11 @@
 {
   "branch": "main",
   "cleanup_requested": "none",
-  "commit_sha": "079bd32b189688e64ade6eea90529d2081a3bccf",
+  "commit_sha": "69477591a4102804deee16f1b55cf8ff14c7aac9",
   "configured_remote_url": "git@github.com:weiyangzen/zenjev.git",
-  "created_at": "2026-09-19T20:40:14+00:00",
+  "created_at": "2026-09-20T21:13:54Z",
   "default_branch": "main",
-  "github_api_sha": "079bd32b189688e64ade6eea90529d2081a3bccf",
+  "github_api_sha": "69477591a4102804deee16f1b55cf8ff14c7aac9",
   "github_ssh_url": "git@github.com:weiyangzen/zenjev.git",
   "github_url": "https://github.com/weiyangzen/zenjev",
   "gitignore_created": false,
@@ -15,12 +15,18 @@
   "repository": "zenjev",
   "schema_version": "draft2repo-receipt/1.0.0",
   "source_deleted": false,
-  "source_path": "/tmp/zenjev-publication-th8gyk9y/source",
+  "source_path": "/home/sansha/Github/zenjev",
   "source_scan": {
-    "regular_files": 34,
-    "total_bytes": 214041
+    "regular_files": 86,
+    "total_bytes": 646436
   },
-  "ssh_remote_sha": "079bd32b189688e64ade6eea90529d2081a3bccf",
-  "transients_removed": [],
-  "visibility": "public"
+  "ssh_remote_sha": "69477591a4102804deee16f1b55cf8ff14c7aac9",
+  "transients_removed": [
+    "mq/target",
+    "runs",
+    ".pytest_cache",
+    "__pycache__"
+  ],
+  "visibility": "public",
+  "verification_method": "git ls-remote origin refs/heads/main"
 }
