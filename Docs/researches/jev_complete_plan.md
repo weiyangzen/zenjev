@@ -14,6 +14,7 @@ Jev 接收用户定义的 Schema 和用户允许的数据源，将可信教师�
 * Schema 的版本化、字段描述、类型、约束、语言和来源配置；
 * 可插拔教师提供商（例如用户已获授权的 GPT 系列或 DeepSeek 系列端点），不把某个未来模型名称写死；
 * URL/RSS/API/本地文件等经过允许列表的数据源，抓取、去重、证据保留和审计；
+* 外部标准消息队列（Kafka 协议、NATS JetStream、可选 Apache Iggy）的持续拉取消费：由可配置的 Rust bridge 拉取、校验、去重和反压，训练循环按消费节奏持续吸收新数据；
 * GLiNER2 205M 本地抽取、LoRA 适配器、EMA、在线推理和回滚；
 * 在 NVIDIA GPU 主机上可复现的训练和基准门禁。
 
@@ -66,6 +67,9 @@ user request ──▶│ inference worker                      │
                 └───────────────▲────────────────────┘
                                 │ atomic promote / rollback
                                 │
+external MQ ──▶ Rust mq bridge ──▶ credit-based local stream ─┐
+ (pull/ack/WAL/DLQ)                                            │
+                                                               ▼
 source config ─▶ fetch/normalize ─▶ teacher adapter ─▶ validator ─▶ replay buffer
                                                                 │
                                                                 ▼
@@ -76,6 +80,7 @@ source config ─▶ fetch/normalize ─▶ teacher adapter ─▶ validator ─
 ```
 
 * **Inference worker**：加载一个 immutable base + active adapter，按 Schema 运行；每个请求记录 schema/version、model/adapter hash、阈值、来源和时间。它不在请求线程内修改权重。
+* **MQ bridge**：Rust 进程用配置的适配器（默认 NATS JetStream durable pull consumer，Kafka/Redpanda 兼容，可选 Iggy）持续拉取外部消息，校验 envelope 与 schema digest，按 `record_id + content_sha256` 去重，先写有界 WAL，再通过 credit-based 本地 UDS 流交给 trainer；只有 trainer 确认持久化后才 ack/commit offset。慢训练通过 `max_ack_pending` 和 credits 反压 broker；毒消息进 DLQ，schema 不匹配进 quarantine，lag/ack/DLQ 指标写入 `artifacts/mq/`。Python 训练代码不直接讲 broker 协议。
 * **Trainer worker**：从已验证 replay buffer 取小批次，更新 live LoRA，再更新 EMA；周期性在冻结 holdout/canary 上评测。评测和导出使用独立 eval 实例，禁止 eval 线程观察半写入权重。
 * **Promotion controller**：验证 candidate 的 manifest 和指标，写入 `adapters/<id>/` 后原子更新 `active.json`；失败时保留旧 active。每次切换都可审计和回滚。
 * **Reset controller**：执行第 6 节的硬门禁。重置期间 inference 继续服务旧 active；新 adapter 只有通过门禁才可上线。
@@ -147,6 +152,38 @@ TeacherProvider.generate(schema, document, source_metadata, request_id)
 
 replay buffer 分成 `recent`、`stable`、`canary` 三层：recent 反映新来源，stable 防止遗忘，canary 是永不被训练覆盖的固定回归集。每个训练 batch 至少混合 stable 与 recent；同一个文档版本只能出现一次。用当前 EMA 的低置信度、字段缺失、教师 disagreement 和新来源域分布做主动采样，但不能以模型自己的错误标签闭环自我强化。
 
+### 5.4 外部标准 MQ 的持续消费（Rust bridge）
+
+Stage 0 的实时输入可以持续来自用户配置的外部标准消息队列，而不是固定数据集；固定 source manifest 仍用于回填和历史重放，两条路径写入同一个 content-addressed replay buffer，并按 `record_id + content_sha256` 去重。蓝图 §1.5 冻结了该契约，本节记录选型依据。
+
+**为什么用 Rust bridge 持有协议。** 消费端是慢速、单写者的训练循环：它必须显式控制拉取节奏、在持久化之前不能确认消息，并把慢训练反压回 broker。把 broker 协议（TLS、重连、rebalance、offset、ack）放进一个独立 Rust 进程，可以让 Python 侧只消费本地、有界、credit 控制的流，同时避免 GIL 与 broker 客户端线程互相干扰。bridge 只负责传输与校验，训练与蒸馏语义仍由 Python 侧负责。
+
+**适配器对比与默认选择。**
+
+| 适配器 | 定位 | Rust 参考实现 | 关键配置 | 取舍 |
+|---|---|---|---|---|
+| `nats-jetstream`（默认） | durable pull consumer，最贴合单写者慢消费者 | `async-nats` | `durable_name`、`filter_subject`、`max_ack_pending`、`ack_wait`、`max_deliver`、`batch`/`expires`、`max_bytes` | 单二进制 broker、Rust 客户端成熟、pull 语义与反压天然匹配；集群/持久化语义需按部署配置验证 |
+| `kafka` | 已有 Kafka 协议集群/Redpanda 的标准兼容路径 | `rdkafka`（librdkafka 绑定） | `group.id`、`enable.auto.commit=false`、`auto.offset.reset`、手动 `store_offset`、`max.poll.interval.ms` | 生态与运维最成熟；需要处理 rebalance、分区顺序与 offset 提交时机 |
+| `iggy`（可选） | 纯 Rust 持久日志、已部署 Apache Iggy 的场景 | Iggy Rust SDK | `enforce_fsync`/flush 阈值、流/主题/分区、消费者组 offset | Apache 顶级项目、io_uring/thread-per-core 性能强；默认持久化保证较弱、VSR 集群仍在成熟，必须先显式配置并基准验证，不作为门禁前提 |
+
+选择 NATS JetStream 作为默认适配器的理由：官方文档明确支持 pull consumer 的 `batch`/`expires`、`max_ack_pending`、`ack_wait`、`max_deliver` 与 durable 恢复；服务端保留未 ack 消息并跨重启计数投递次数；`max_ack_pending` 提供 broker 侧反压。这与“训练完成一批才确认一批”的语义完全一致。Kafka/rdkafka 是必须保留的标准兼容路径，并严格遵循 at-least-once 实践：`enable.auto.commit=false`，只在消息被下游持久化处理后 `store_offset`/commit。Iggy 作为可选适配器，不允许成为任何验收门禁的唯一依据。
+
+**消息 envelope 与幂等。** 每条消息是 UTF-8 JSON，包含 `envelope_version`、`record_id`、`content_sha256`、`schema`（`id`/`version`/`digest`）、`kind`（`labelled_example` | `tool_task_pair` | `raw_document`）、`source`（`uri`/`content_sha256`/`retrieved_at`/`license`）、可选 `observed_model`、可选 `request`/`response`、可选 `labels`/`example`、`created_at`。`record_id + content_sha256` 是幂等键；CBOR 仅在显式配置时启用。
+
+**投递语义与故障处理。**
+
+1. bridge 拉取有界批次，校验 envelope、字节大小与 schema digest；畸形/超限消息写 DLQ 后 ack，毒输入不能让消费者崩溃。
+2. schema digest 与当前 lineage 不匹配的记录进入 quarantine 并告警，既不训练也不静默丢弃；`observed_model` 不在 allowlist 时在抽取前 reject（§2.1.1）。
+3. 有效记录先写入有界 WAL，再以 length-prefixed 帧和 credit 流控转发给 trainer；只有 trainer 确认 replay buffer/provenance 持久化后，bridge 才 ack（NATS）或 commit offset（Kafka）。credits 限定在途窗口，慢训练自然反压 broker。
+4. 崩溃恢复时重放 WAL 并从 broker 已 commit 位置继续；重复由幂等键丢弃并计数。端到端是 at-least-once，明确不宣称 exactly-once。
+5. 重试达到上限（如 `max_deliver`）后进入 DLQ，附带投递次数和最后错误分类。
+6. `labelled_example` 直接进入 replay buffer 与 LoRA/EMA 训练；`tool_task_pair`/`raw_document` 必须先经过 validator、`jev-tool-task` 抽取/决策与蒸馏，任何情况下都不绕过 §5.2 的质量门禁。
+7. 停机时先排空在途 credits 再 ack；支持按 offset/时间戳重放、暂停与恢复，并记录审计字段（broker 身份、stream/topic、partition/offset、投递次数、消费者组、bridge 构建版本）。
+
+**密钥与审计。** 凭据只来自环境变量或 secret store 引用，broker 密码/token/密钥不写入配置、日志、DLQ 负载或仓库。每个消费批次记录 adapter 版本、endpoint 身份、offset/sequence、投递次数与下游持久化回执，供 G10/G11 取证。
+
+**故障模式。** broker 不可用时训练使用已接受数据继续，bridge 断线重连后从已 commit offset 恢复；offset 落后（lag）是核心告警指标；DLQ/quarantine 必须可查询、可重放；trainer 崩溃不得导致已拉取未确认记录丢失（WAL 重放）。
+
 ## 6. LoRA 累计误差崩溃判定和重置
 
 “崩溃”必须依据 live/EMA candidate 相对于**冻结基线**和当前最佳 active 的指标，而非只看训练 loss。每次评测使用固定 holdout、canary 和最近窗口，报告 micro/macro F1、字段级 precision/recall、exact JSON validity、evidence grounding rate、ECE（或可靠性分箱）、拒答率、延迟和 adapter norm。
@@ -184,6 +221,8 @@ NVIDIA GPU 的显存、计算能力和功耗随型号变化；部署脚本在启
 * **语言错配**：205M English checkpoint 对中文 Schema 可能失真；必须使用多语 checkpoint 或明确限定语言，并以同一 golden set 验证。
 * **伪标签偏差**：教师会把时效性/来源偏差传给学生；证据定位、双采样和 stable/canary 混合只降低风险，不能保证事实正确。
 * **在线更新竞态**：直接在 inference 权重上训练会出现半更新读；采用分进程、临时导出和原子 promote。
+* **MQ 重复与毒消息**：at-least-once 必然产生重复，必须按 `record_id + content_sha256` 幂等去重，并设置重试上限与 DLQ；否则 poison 消息会长期占用消费者或反复进入训练。
+* **MQ 可用性与 offset 语义**：broker 中断时训练应使用已接受数据继续，bridge 重连后从已 commit offset 恢复；在 trainer 持久化确认前 ack/commit 会静默丢数据，必须由 G10 的断言阻止。
 * **EMA 过度平滑**：decay 过大可能延迟适应；同时评估 live 与 EMA，只有更优且合规的版本才发布。
 * **LoRA 容量不足或过拟合**：r、target modules、学习率、recent/stable 比例都需基准；不能由 adapter 大小推断质量。
 * **来源许可与隐私**：用户必须确认抓取/蒸馏权利；Jev 只允许配置的 source，保存 provenance 和删除索引。
@@ -199,3 +238,8 @@ NVIDIA GPU 的显存、计算能力和功耗随型号变化；部署脚本在启
 7. Hugging Face timm, *ModelEmaV2 implementation*：<https://github.com/huggingface/pytorch-image-models/blob/main/timm/utils/model_ema.py>
 8. Hinton et al., *Distilling the Knowledge in a Neural Network*：<https://arxiv.org/abs/1503.02531>
 9. NVIDIA, *CUDA documentation*：<https://docs.nvidia.com/cuda/>
+10. NATS, *Pull consumers in depth*（batch/expires、max_ack_pending、ack_wait、max_deliver）：<https://docs.nats.io/learn/jetstream/pull-consumers>
+11. docs.rs, *async-nats JetStream consumer API*：<https://docs.rs/async-nats/latest/async_nats/jetstream/consumer/index.html>
+12. fede1024, *rust-rdkafka at-least-once delivery*：<https://github.com/fede1024/rust-rdkafka>
+13. Apache Iggy（Rust 持久消息流，2026-08 成为 Apache 顶级项目）：<https://iggy.apache.org/>
+14. SoftwareMill, *Apache Kafka vs Apache Iggy: Same Log, Different Engine*：<https://softwaremill.com/apache-kafka-vs-apache-iggy-same-log-different-engine/>

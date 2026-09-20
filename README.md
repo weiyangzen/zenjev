@@ -60,3 +60,11 @@ spans; ZenJev's allowlist router returns `allow`, `review`, or `reject`. It
 never executes a tool from model output. The existing runtime supports training beside
 inference through immutable EMA snapshots; `ContinuousLoRAStream` provides a
 bounded background queue with explicit backpressure around the trainer.
+
+Live training input can also arrive continuously from a configurable external
+standard message queue (NATS JetStream durable pull by default, Kafka/Redpanda,
+optional Apache Iggy) through the Rust `mq` bridge: it validates the versioned
+envelope, deduplicates by `record_id` plus content hash, spools to a bounded
+local WAL, and acks or commits the broker offset only after the trainer durably
+accepts the record. The contract is frozen in §1.5 of
+[`Docs/stage0_zenjev_blueprint.md`](Docs/stage0_zenjev_blueprint.md).
