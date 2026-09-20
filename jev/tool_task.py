@@ -7,9 +7,127 @@ can select a policy action only after model, tool and confidence checks pass.
 
 from __future__ import annotations
 
+import hashlib
+import json
+import re
+import time
 from typing import Any, Iterable
 
 from .config import JevConfig, ToolTaskPolicy
+
+_SECRET_PATTERNS = (
+    re.compile(r"(?i)(api[_-]?key|token|password|secret|passwd)\s*[:=]\s*\S+"),
+    re.compile(r"(?i)bearer\s+[A-Za-z0-9._\-]+"),
+    re.compile(r"\bsk-[A-Za-z0-9]{10,}\b"),
+)
+
+
+def redact_secrets(text: str) -> str:
+    """Remove credential-shaped substrings before a landing-pool record is stored."""
+    redacted = text
+    for pattern in _SECRET_PATTERNS:
+        redacted = pattern.sub(lambda match: f"{match.group(1)}: [REDACTED]" if match.lastindex else "[REDACTED]", redacted)
+    return redacted
+
+
+def admit_tool_task_record(record: dict[str, Any], config: JevConfig) -> dict[str, Any]:
+    """Validate a §1.4 landing-pool record before extraction.
+
+    The observed model is matched exactly against the policy allowlist and may
+    never be inferred from response text. Request/response text is redacted and
+    bound to source provenance and schema/policy digests.
+    """
+    if config.tool_task is None:
+        raise ValueError("config.tool_task is required for landing-pool admission")
+    if not isinstance(record, dict):
+        raise ValueError("landing-pool record must be an object")
+    if int(record.get("schema_version", 0)) != 1:
+        raise ValueError("landing-pool record schema_version must be 1")
+    request_id = record.get("request_id")
+    if not isinstance(request_id, str) or not request_id:
+        raise ValueError("landing-pool record requires a non-empty request_id")
+    source = record.get("source")
+    if not isinstance(source, dict):
+        raise ValueError("landing-pool record requires a source object")
+    for key in ("uri", "content_sha256", "retrieved_at"):
+        if not isinstance(source.get(key), str) or not source[key]:
+            raise ValueError(f"landing-pool source requires {key}")
+    observed = record.get("observed_model")
+    if not isinstance(observed, dict):
+        raise ValueError("landing-pool record requires observed_model")
+    model_id = observed.get("model_id", observed.get("id"))
+    allowed_ids = {item.model_id for item in config.tool_task.allowed_models}
+    allowed_ids |= {alias for item in config.tool_task.allowed_models for alias in item.aliases}
+    if not isinstance(model_id, str) or model_id not in allowed_ids:
+        raise ValueError(f"observed model is not allowlisted: {model_id!r}")
+    sections: dict[str, str] = {}
+    for section in ("request", "response"):
+        payload = record.get(section)
+        if not isinstance(payload, dict) or not isinstance(payload.get("text"), str) or not payload["text"]:
+            raise ValueError(f"landing-pool record requires {section}.text")
+        sections[section] = payload["text"]
+    admitted = {
+        "request_id": request_id,
+        "source": {
+            "uri": source["uri"],
+            "content_sha256": source["content_sha256"],
+            "retrieved_at": source["retrieved_at"],
+            "license": str(source.get("license", "")),
+        },
+        "observed_model": {
+            "provider": str(observed.get("provider", "")),
+            "model_id": model_id,
+        },
+        "request": {"text": redact_secrets(sections["request"])},
+        "response": {"text": redact_secrets(sections["response"])},
+        "provenance": {
+            "schema_digest": config.schema.digest(),
+            "policy_digest": hashlib.sha256(
+                json.dumps(config.tool_task.as_contract(), sort_keys=True, ensure_ascii=False).encode()
+            ).hexdigest(),
+            "admitted_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "record_digest": hashlib.sha256(
+                json.dumps(record, sort_keys=True, ensure_ascii=False).encode()
+            ).hexdigest(),
+        },
+    }
+    return admitted
+
+
+def pair_tool_task_records(records: Iterable[dict[str, Any]], config: JevConfig) -> list[dict[str, Any]]:
+    """Pair section-aware landing-pool entries (request/response) by request_id.
+
+    Records may already be combined, or arrive as separate single-section
+    entries with a ``section`` field. Incomplete pairs are rejected, never
+    silently dropped.
+    """
+    combined: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    for record in records:
+        if not isinstance(record, dict):
+            raise ValueError("landing-pool record must be an object")
+        request_id = str(record.get("request_id", ""))
+        if not request_id:
+            raise ValueError("landing-pool record requires a non-empty request_id")
+        section = record.get("section")
+        if section in ("request", "response"):
+            if request_id not in combined:
+                base = {key: value for key, value in record.items() if key != section and key not in ("request", "response")}
+                combined[request_id] = base
+                order.append(request_id)
+            payload = record.get(section, record.get("text"))
+            combined[request_id][section] = payload if isinstance(payload, dict) else {"text": payload}
+        else:
+            if request_id not in combined:
+                order.append(request_id)
+            combined[request_id] = record
+    paired: list[dict[str, Any]] = []
+    for request_id in order:
+        record = combined[request_id]
+        if not isinstance(record.get("request"), dict) or not isinstance(record.get("response"), dict):
+            raise ValueError(f"incomplete request/response pair for {request_id}")
+        paired.append(admit_tool_task_record(record, config))
+    return paired
 
 
 def _as_classifier(model: Any, classifier_type: Any) -> Any:

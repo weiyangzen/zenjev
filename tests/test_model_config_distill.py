@@ -2,11 +2,20 @@ import json
 import sys
 import types
 
+import pytest
+
 from jev.config import JevConfig
 from jev.distill import OpenAICompatibleTeacher, _validate_output
 from jev.model import apply_lora, extract, gliner2_step, load_gliner
 from jev.sources import SourceDocument
-from jev.tool_task import classify_decision_choices, classify_task_type, resolve_tool_task
+from jev.tool_task import (
+    admit_tool_task_record,
+    classify_decision_choices,
+    classify_task_type,
+    pair_tool_task_records,
+    redact_secrets,
+    resolve_tool_task,
+)
 
 
 def make_config():
@@ -236,3 +245,69 @@ def test_classify_decision_choices_preserves_probability_map(monkeypatch):
     result = classify_decision_choices(object(), "train with PyTorch", policy)
     assert result["decision_choice"]["probabilities"]["PyTorch"] == 0.9
     assert calls["schema"][1] == ["PyTorch", "Python"]
+
+
+def _tool_task_config():
+    return JevConfig.from_dict({
+        **make_config().canonical(),
+        "tool_task": {
+            "name": "jev-tool-task",
+            "task_types": ["coding", "other"],
+            "task_actions": {"coding": "allow", "other": "reject"},
+            "allowed_models": [{"id": "gpt-6-astra", "provider": "openai-compatible", "aliases": ["gpt-6-astra-latest"]}],
+            "allowed_tools": ["python"],
+        },
+    })
+
+
+def test_landing_pool_admission_redacts_secrets_and_binds_provenance():
+    config = _tool_task_config()
+    record = {
+        "schema_version": 1,
+        "request_id": "landing-1",
+        "source": {"uri": "user-owned://landing/1", "content_sha256": "a" * 64, "retrieved_at": "2026-09-21T00:00:00Z", "license": "user-owned"},
+        "observed_model": {"provider": "openai-compatible", "model_id": "gpt-6-astra"},
+        "request": {"text": "Fix the parser; api_key=sk-secretsecret123"},
+        "response": {"text": "Use pytest. Authorization: Bearer abc.def.ghi"},
+    }
+    admitted = admit_tool_task_record(record, config)
+    assert "[REDACTED]" in admitted["request"]["text"]
+    assert "[REDACTED]" in admitted["response"]["text"]
+    assert "sk-secretsecret123" not in json.dumps(admitted)
+    assert admitted["provenance"]["schema_digest"] == config.schema.digest()
+    assert admitted["provenance"]["policy_digest"]
+    assert admitted["observed_model"]["model_id"] == "gpt-6-astra"
+
+    unknown = {**record, "observed_model": {"provider": "openai-compatible", "model_id": "unknown-model"}}
+    try:
+        admit_tool_task_record(unknown, config)
+        raise AssertionError("unknown observed model must be rejected")
+    except ValueError as exc:
+        assert "not allowlisted" in str(exc)
+
+
+def test_pair_tool_task_records_requires_complete_pairs():
+    config = _tool_task_config()
+    base = {
+        "schema_version": 1,
+        "request_id": "landing-2",
+        "source": {"uri": "user-owned://landing/2", "content_sha256": "b" * 64, "retrieved_at": "2026-09-21T00:00:00Z"},
+        "observed_model": {"provider": "openai-compatible", "model_id": "gpt-6-astra"},
+    }
+    records = [
+        {**base, "section": "request", "text": "How do I test?"},
+        {**base, "section": "response", "text": "Use pytest."},
+    ]
+    paired = pair_tool_task_records(records, config)
+    assert len(paired) == 1
+    assert paired[0]["request"]["text"] == "How do I test?"
+    assert paired[0]["response"]["text"] == "Use pytest."
+    with pytest.raises(ValueError):
+        pair_tool_task_records([records[0]], config)
+
+
+def test_redact_secrets_patterns():
+    assert "token: [REDACTED]" in redact_secrets("token: abc123")
+    assert "[REDACTED]" in redact_secrets("Authorization: Bearer xyz.123")
+    assert "xyz.123" not in redact_secrets("Authorization: Bearer xyz.123")
+    assert "sk-" not in redact_secrets("key sk-abcdefghijklmnop")

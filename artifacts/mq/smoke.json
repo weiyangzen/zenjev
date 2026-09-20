@@ -1,0 +1,68 @@
+{
+  "pass": true,
+  "bridge_binary": "/home/sansha/Github/zenjev/mq/target/debug/jev-mq-bridge",
+  "ingest": {
+    "received": 3,
+    "accepted": 3,
+    "duplicates": 0,
+    "quarantined": 0,
+    "dlq_rejected": 0,
+    "tool_task_pairs": 1,
+    "documents": 1,
+    "labelled_examples": 1,
+    "bridge": {
+      "ack_latency_ms": {
+        "count": 3,
+        "max": 10.938385,
+        "p50": 7.429994,
+        "p95": 7.429994
+      },
+      "acked": 3,
+      "adapter": "mock",
+      "bridge_build": "jev-mq-bridge/0.1.0",
+      "consumer_lag": 0,
+      "credits": 2,
+      "delivered": 3,
+      "dlq": 1,
+      "duplicates_suppressed": 1,
+      "durable_name": "jev-trainer",
+      "endpoint_identity": "local",
+      "inflight": 0,
+      "last_error_class": "dlq:envelope_not_json",
+      "offset_checkpoint": 6,
+      "pulled": 6,
+      "quarantined": 1,
+      "rejected_by_client": 0,
+      "schema_digest": "08d7a9923e57698d280027695bc49c2d91749f0f26aad5ca946e7503fd5f916a",
+      "started_at_unix_ms": 1789938659357,
+      "stream": "JEV_RECORDS",
+      "subject": "jev.records",
+      "updated_at_unix_ms": 1789938659448,
+      "wal_bytes": 0,
+      "wal_records": 0
+    },
+    "ack_latency_ms": [
+      7.2,
+      3.627,
+      3.584
+    ]
+  },
+  "bridge": {
+    "pulled": 6,
+    "delivered": 3,
+    "acked": 3,
+    "duplicates_suppressed": 1,
+    "dlq": 1,
+    "quarantined": 1,
+    "offset_checkpoint": 6
+  },
+  "accepted_record_ids": [
+    "labelled-1",
+    "pair-1",
+    "doc-1"
+  ],
+  "dlq_entries": 1,
+  "quarantine_entries": 1,
+  "live_broker": false,
+  "note": "mock adapter; no external broker was contacted (operator waived the live soak)"
+}

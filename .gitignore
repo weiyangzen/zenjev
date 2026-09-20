@@ -16,3 +16,5 @@ artifacts/checkpoints/
 *.pt
 *.bin
 *.log
+mq/target/
+Cargo.toml.lock

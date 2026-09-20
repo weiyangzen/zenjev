@@ -1,0 +1,231 @@
+{
+  "checkpoint_dir": "/tmp/jev-recovery-drill",
+  "checks": {
+    "archive_written": true,
+    "no_errors": true,
+    "reset_event_archive_exists": true,
+    "reset_event_logged": true,
+    "reset_id_incremented": true,
+    "reset_required_fired": true,
+    "serving_continuity_held": true,
+    "warmup_completed": true,
+    "warmup_required": true
+  },
+  "config": {
+    "checkpoint_every_steps": 1,
+    "digest": "4bac159712f812f7b82d17c2655b841ef024275219a6abfb7e17af9943393afe",
+    "drift": {
+      "ema_norm_ratio": 3.0,
+      "eval_window": 2,
+      "f1_absolute_drop": 0.15,
+      "f1_relative_floor": 0.8,
+      "loss_margin": 0.0,
+      "loss_ratio": 2.0,
+      "max_non_finite": 0,
+      "min_windows": 2,
+      "reset_cooldown_steps": 1,
+      "validation_loss_ratio": 2.0
+    },
+    "path": "configs/example.yaml",
+    "publish_every_steps": 1,
+    "reset_warmup_steps": 2,
+    "schema_digest": "08d7a9923e57698d280027695bc49c2d91749f0f26aad5ca946e7503fd5f916a"
+  },
+  "errors": [],
+  "events": [
+    {
+      "checkpoint": "/tmp/jev-recovery-drill/adapter-step-00000001.pt",
+      "loss": 1.0273507833480835,
+      "model_generation": 2,
+      "reset_reason": null,
+      "reset_required": false,
+      "step": 1
+    },
+    {
+      "checkpoint": "/tmp/jev-recovery-drill/adapter-step-00000002.pt",
+      "loss": 1.0271141529083252,
+      "model_generation": 3,
+      "reset_reason": null,
+      "reset_required": false,
+      "step": 2
+    },
+    {
+      "checkpoint": "/tmp/jev-recovery-drill/adapter-step-00000003.pt",
+      "loss": 1.0268793106079102,
+      "model_generation": 4,
+      "reset_reason": null,
+      "reset_required": false,
+      "step": 3
+    },
+    {
+      "checkpoint": "/tmp/jev-recovery-drill/adapter-step-00000004.pt",
+      "loss": 1026.6446533203125,
+      "model_generation": 5,
+      "reset_reason": null,
+      "reset_required": false,
+      "step": 4
+    },
+    {
+      "checkpoint": "/tmp/jev-recovery-drill/adapter-step-00000005.pt",
+      "loss": 1026.5084228515625,
+      "model_generation": 6,
+      "reset_reason": null,
+      "reset_required": false,
+      "step": 5
+    },
+    {
+      "checkpoint": null,
+      "loss": 1026.336669921875,
+      "model_generation": 6,
+      "reset_reason": "loss_window_exceeded",
+      "reset_required": true,
+      "step": 6
+    },
+    {
+      "checkpoint": "/tmp/jev-recovery-drill/adapter-step-00000007.pt",
+      "loss": 1.0273569822311401,
+      "model_generation": 6,
+      "reset_reason": null,
+      "reset_required": false,
+      "step": 7
+    },
+    {
+      "checkpoint": "/tmp/jev-recovery-drill/adapter-step-00000008.pt",
+      "loss": 1.027119755744934,
+      "model_generation": 7,
+      "reset_reason": null,
+      "reset_required": false,
+      "step": 8
+    },
+    {
+      "checkpoint": "/tmp/jev-recovery-drill/adapter-step-00000009.pt",
+      "loss": 1.0268844366073608,
+      "model_generation": 8,
+      "reset_reason": null,
+      "reset_required": false,
+      "step": 9
+    },
+    {
+      "checkpoint": "/tmp/jev-recovery-drill/adapter-step-00000010.pt",
+      "loss": 1.0266504287719727,
+      "model_generation": 9,
+      "reset_reason": null,
+      "reset_required": false,
+      "step": 10
+    }
+  ],
+  "gpu": {
+    "capability": "12.0",
+    "memory_bytes": 33670758400,
+    "name": "NVIDIA GeForce RTX 5090 D"
+  },
+  "model_path": "/home/sansha/jev-model-base",
+  "pass": true,
+  "peak_vram_bytes": 2554785792,
+  "phases": {
+    "collapse": {
+      "losses": [
+        1026.336669921875
+      ],
+      "model_generation": 6,
+      "reset_reason": "loss_window_exceeded",
+      "reset_required": [
+        true
+      ],
+      "seconds": 1.8381282282061875,
+      "steps": 1
+    },
+    "inflated_lead_in": {
+      "losses": [
+        1026.6446533203125,
+        1026.5084228515625
+      ],
+      "model_generation": 6,
+      "reset_reason": null,
+      "reset_required": [
+        false,
+        false
+      ],
+      "seconds": 0.7818724329117686,
+      "steps": 2
+    },
+    "normal_baseline": {
+      "losses": [
+        1.0273507833480835,
+        1.0271141529083252,
+        1.0268793106079102
+      ],
+      "model_generation": 4,
+      "reset_reason": null,
+      "reset_required": [
+        false,
+        false,
+        false
+      ],
+      "seconds": 1.44228287297301,
+      "steps": 3
+    },
+    "warmup": {
+      "losses": [
+        1.0273569822311401,
+        1.027119755744934,
+        1.0268844366073608,
+        1.0266504287719727
+      ],
+      "model_generation": 9,
+      "reset_reason": null,
+      "reset_required": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "seconds": 1.4602734630461782,
+      "steps": 4
+    }
+  },
+  "reset": {
+    "archives": [
+      {
+        "bytes": 21459871,
+        "name": "reset-000000-step-00000006-1789938404-502ea676.pt",
+        "path": "/tmp/jev-recovery-drill/archives/reset-000000-step-00000006-1789938404-502ea676.pt"
+      }
+    ],
+    "events": [
+      {
+        "archive": "/tmp/jev-recovery-drill/archives/reset-000000-step-00000006-1789938404-502ea676.pt",
+        "archive_exists": true,
+        "reason": "loss_window_exceeded",
+        "reset_id": 1,
+        "step": 6,
+        "warmup_steps": 2
+      }
+    ],
+    "fired": true,
+    "reset_id": 1
+  },
+  "serving_continuity": {
+    "generation_after_warmup": 9,
+    "generation_before_reset": 6,
+    "generation_during_warmup": 6,
+    "held": true,
+    "output_present": true,
+    "reset_id_after_warmup": 1,
+    "reset_id_during_warmup": 0
+  },
+  "timings": {
+    "model_load_seconds": [
+      2.9858001100365072,
+      1.72138680703938
+    ],
+    "setup_seconds": 3.1988611959386617,
+    "total_seconds": 9.087727532023564,
+    "training_seconds": 5.522556997137144
+  },
+  "warmup": {
+    "completed": true,
+    "model_generation": 9,
+    "required": true
+  }
+}

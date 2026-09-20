@@ -1,0 +1,5 @@
+# Train extra: install with `pip install -r requirements-train.txt`
+gliner2[train]>=0.3.0
+torch>=2.1
+peft>=0.10
+PyYAML>=6

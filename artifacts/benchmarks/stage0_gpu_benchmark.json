@@ -1,0 +1,53 @@
+{
+  "base_load_seconds": 3.0583309119101614,
+  "benchmark_seconds": 6.672929466003552,
+  "checks": {
+    "ema_updates": true,
+    "generation_advanced": true,
+    "inferences_completed": true,
+    "no_errors": true,
+    "observations_recorded": true,
+    "observed_generation_positive": true,
+    "smoke_pass": true,
+    "steps_completed": true,
+    "temperature_power_recorded": true,
+    "vram_recorded": true,
+    "vram_within_device": true
+  },
+  "concurrent_train_infer": {
+    "ema_updates": 3,
+    "errors": [],
+    "inferences": 4,
+    "model_generation": 4
+  },
+  "errors": [
+    "/home/sansha/Github/zenjev/.venv/lib/python3.12/site-packages/gliner2/models/span/model.py:99: RuntimeWarning: Encoder rejected attn_implementation='sdpa'; falling back to 'eager' (DebertaV2Model does not support an attention implementation through torch.nn.functional.scaled_dot_product_attention yet. Please request the support for this architecture: https://github.com/huggingface/transformers/issues/28005. If you believe this error is a bug, please open an issue in Transformers GitHub repository and load your model with the argument `attn_implementation=\"eager\"` meanwhile. Example: `model = AutoModel.from_pretrained(\"openai/whisper-tiny\", attn_implementation=\"eager\")`)",
+    "  self.encoder = self._load_encoder("
+  ],
+  "gpu": {
+    "capability": "12.0",
+    "memory_bytes": 33670758400,
+    "name": "NVIDIA GeForce RTX 5090 D"
+  },
+  "inference_p50_seconds": 0.22819439659360796,
+  "inference_p95_seconds": 0.4385965706547722,
+  "inference_throughput_per_second": 4.30825530816254,
+  "inferences": 4,
+  "losses": [
+    0.027276622131466866,
+    0.027040138840675354,
+    0.02680511213839054
+  ],
+  "nvidia_smi_temperature_power": "57, 88.92 W",
+  "pass": true,
+  "peak_vram_bytes": 2572858368,
+  "smoke_exit_code": 0,
+  "steps": 3,
+  "training_seconds": 1.7749770870432258,
+  "training_steps_per_second": 1.690162662886781,
+  "versions": {
+    "cuda": "12.8",
+    "torch": "2.9.1+cu128"
+  },
+  "vram_headroom_bytes": 31097900032
+}

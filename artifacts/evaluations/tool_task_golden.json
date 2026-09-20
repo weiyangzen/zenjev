@@ -1,0 +1,727 @@
+{
+  "cases": [
+    {
+      "actual_action": "allow",
+      "actual_reasons": [],
+      "configured_action": "allow",
+      "decision_choices": [
+        {
+          "choice": "PyTorch",
+          "probability": 0.91
+        },
+        {
+          "choice": "Python",
+          "probability": 0.82
+        }
+      ],
+      "expected_action": "allow",
+      "expected_reasons": [],
+      "match": true,
+      "model_backed": {
+        "actual_action": "reject",
+        "decision_choices": [
+          {
+            "choice": "Python",
+            "probability": 0.6369209452807535
+          },
+          {
+            "choice": "PyTorch",
+            "probability": 0.579399116144894
+          },
+          {
+            "choice": "python",
+            "probability": 0.4803218276698712
+          },
+          {
+            "choice": "bash",
+            "probability": 5.724095319666925e-05
+          },
+          {
+            "choice": "git",
+            "probability": 4.7252033572926504e-05
+          },
+          {
+            "choice": "Docker",
+            "probability": 4.599903854442758e-05
+          },
+          {
+            "choice": "SQL",
+            "probability": 4.0359539877457814e-05
+          },
+          {
+            "choice": "Java",
+            "probability": 3.806435583704316e-05
+          },
+          {
+            "choice": "PostgreSQL",
+            "probability": 1.5143135703066648e-05
+          },
+          {
+            "choice": "GLiNER2",
+            "probability": 1.304259129190937e-05
+          },
+          {
+            "choice": "docker",
+            "probability": 1.244010201182253e-05
+          },
+          {
+            "choice": "JavaScript",
+            "probability": 1.0237363786987163e-05
+          },
+          {
+            "choice": "PEFT",
+            "probability": 9.528802052861463e-06
+          },
+          {
+            "choice": "C++",
+            "probability": 8.733917864213246e-06
+          },
+          {
+            "choice": "browser",
+            "probability": 6.751463214194662e-06
+          },
+          {
+            "choice": "Go",
+            "probability": 4.958056135317363e-06
+          },
+          {
+            "choice": "Kubernetes",
+            "probability": 4.445112633414029e-06
+          },
+          {
+            "choice": "TypeScript",
+            "probability": 3.395679503427873e-06
+          },
+          {
+            "choice": "Transformers",
+            "probability": 2.645760607290266e-06
+          },
+          {
+            "choice": "Rust",
+            "probability": 2.5259706254133755e-06
+          }
+        ],
+        "expected_action": "allow",
+        "match": false,
+        "name": "allowlisted_model_and_tool",
+        "reasons": [
+          "tool_not_allowlisted",
+          "decision_confidence_below_threshold"
+        ],
+        "task_type": "tool_use"
+      },
+      "name": "allowlisted_model_and_tool",
+      "observed_model_id": "gpt-6-astra",
+      "policy_record": true,
+      "reasons_match": true,
+      "request": "Fix the Python parser bug and add a regression test.",
+      "response": "Use Python with PyTorch and run the regression test.",
+      "task_type": "coding"
+    },
+    {
+      "actual_action": "reject",
+      "actual_reasons": [
+        "model_not_allowlisted"
+      ],
+      "configured_action": "allow",
+      "decision_choices": [
+        {
+          "choice": "PyTorch",
+          "probability": 0.91
+        },
+        {
+          "choice": "Python",
+          "probability": 0.82
+        }
+      ],
+      "expected_action": "reject",
+      "expected_reasons": [
+        "model_not_allowlisted"
+      ],
+      "match": true,
+      "model_backed": {
+        "actual_action": "reject",
+        "decision_choices": [
+          {
+            "choice": "PyTorch",
+            "probability": 0.9999479902828233
+          },
+          {
+            "choice": "Python",
+            "probability": 0.9948042620742329
+          },
+          {
+            "choice": "python",
+            "probability": 0.6405448299359615
+          },
+          {
+            "choice": "SQL",
+            "probability": 1.1365147276050981e-05
+          },
+          {
+            "choice": "git",
+            "probability": 8.052208664377107e-06
+          },
+          {
+            "choice": "Docker",
+            "probability": 4.9695451251013514e-06
+          },
+          {
+            "choice": "PostgreSQL",
+            "probability": 3.572054634361336e-06
+          },
+          {
+            "choice": "docker",
+            "probability": 3.287027640661731e-06
+          },
+          {
+            "choice": "Java",
+            "probability": 3.0219269464738844e-06
+          },
+          {
+            "choice": "bash",
+            "probability": 2.870732246751069e-06
+          },
+          {
+            "choice": "JavaScript",
+            "probability": 1.8365609546609035e-06
+          },
+          {
+            "choice": "browser",
+            "probability": 1.6406577609479187e-06
+          },
+          {
+            "choice": "C++",
+            "probability": 1.596286663506798e-06
+          },
+          {
+            "choice": "GLiNER2",
+            "probability": 1.5689598702443786e-06
+          },
+          {
+            "choice": "PEFT",
+            "probability": 1.3055854534076082e-06
+          },
+          {
+            "choice": "Kubernetes",
+            "probability": 1.0511837727072238e-06
+          },
+          {
+            "choice": "Go",
+            "probability": 1.0373540310954899e-06
+          },
+          {
+            "choice": "TypeScript",
+            "probability": 8.244836271476821e-07
+          },
+          {
+            "choice": "Rust",
+            "probability": 7.703707859458866e-07
+          },
+          {
+            "choice": "Transformers",
+            "probability": 6.703747029652409e-07
+          }
+        ],
+        "expected_action": "reject",
+        "match": true,
+        "name": "unknown_model_rejected",
+        "reasons": [
+          "model_not_allowlisted",
+          "tool_not_allowlisted"
+        ],
+        "task_type": "tool_use"
+      },
+      "name": "unknown_model_rejected",
+      "observed_model_id": "mystery-9",
+      "policy_record": true,
+      "reasons_match": true,
+      "request": "Summarize the incident plan.",
+      "response": "Python and PyTorch are recommended for the recovery tool.",
+      "task_type": "coding"
+    },
+    {
+      "actual_action": "review",
+      "actual_reasons": [
+        "confidence_below_threshold"
+      ],
+      "configured_action": "allow",
+      "decision_choices": [
+        {
+          "choice": "python",
+          "probability": 0.9
+        }
+      ],
+      "expected_action": "review",
+      "expected_reasons": [
+        "confidence_below_threshold"
+      ],
+      "match": true,
+      "model_backed": {
+        "actual_action": "review",
+        "decision_choices": [
+          {
+            "choice": "python",
+            "probability": 0.5204911545267341
+          },
+          {
+            "choice": "Python",
+            "probability": 0.2751210106245224
+          },
+          {
+            "choice": "bash",
+            "probability": 2.6504415223859343e-05
+          },
+          {
+            "choice": "git",
+            "probability": 8.608300480692983e-06
+          },
+          {
+            "choice": "SQL",
+            "probability": 7.17663907622076e-06
+          },
+          {
+            "choice": "JavaScript",
+            "probability": 6.64015872892971e-06
+          },
+          {
+            "choice": "Java",
+            "probability": 6.467507455386157e-06
+          },
+          {
+            "choice": "browser",
+            "probability": 5.19634386095622e-06
+          },
+          {
+            "choice": "Go",
+            "probability": 4.2933314976013835e-06
+          },
+          {
+            "choice": "PostgreSQL",
+            "probability": 4.050149089083987e-06
+          },
+          {
+            "choice": "PEFT",
+            "probability": 3.3889600839427335e-06
+          },
+          {
+            "choice": "C++",
+            "probability": 2.6938221269400943e-06
+          },
+          {
+            "choice": "docker",
+            "probability": 2.1470706217155575e-06
+          },
+          {
+            "choice": "TypeScript",
+            "probability": 2.003178640854243e-06
+          },
+          {
+            "choice": "Docker",
+            "probability": 1.881306392356435e-06
+          },
+          {
+            "choice": "GLiNER2",
+            "probability": 1.875883330971635e-06
+          },
+          {
+            "choice": "PyTorch",
+            "probability": 1.7739754686682957e-06
+          },
+          {
+            "choice": "Rust",
+            "probability": 1.49379479642167e-06
+          },
+          {
+            "choice": "Kubernetes",
+            "probability": 1.3648363798827449e-06
+          },
+          {
+            "choice": "Transformers",
+            "probability": 1.0206803417531541e-06
+          }
+        ],
+        "expected_action": "review",
+        "match": true,
+        "name": "low_confidence_reviewed",
+        "reasons": [
+          "confidence_below_threshold",
+          "decision_confidence_below_threshold"
+        ],
+        "task_type": "coding"
+      },
+      "name": "low_confidence_reviewed",
+      "observed_model_id": "deepseek-4.1f",
+      "policy_record": true,
+      "reasons_match": true,
+      "request": "Maybe refactor the parser.",
+      "response": "Python could help here.",
+      "task_type": "coding"
+    },
+    {
+      "actual_action": "reject",
+      "actual_reasons": [
+        "task_type_unknown"
+      ],
+      "configured_action": null,
+      "decision_choices": [
+        {
+          "choice": "python",
+          "probability": 0.9
+        }
+      ],
+      "expected_action": "reject",
+      "expected_reasons": [
+        "task_type_unknown"
+      ],
+      "match": true,
+      "model_backed": {
+        "actual_action": "reject",
+        "decision_choices": [
+          {
+            "choice": "PyTorch",
+            "probability": 0.4506903762352004
+          },
+          {
+            "choice": "python",
+            "probability": 0.4009520197011125
+          },
+          {
+            "choice": "Python",
+            "probability": 0.2137597362833538
+          },
+          {
+            "choice": "Go",
+            "probability": 0.012470940889448489
+          },
+          {
+            "choice": "C++",
+            "probability": 0.0005817910394442221
+          },
+          {
+            "choice": "SQL",
+            "probability": 0.0004184417066805631
+          },
+          {
+            "choice": "Java",
+            "probability": 0.000171495815271179
+          },
+          {
+            "choice": "git",
+            "probability": 0.00013499637317507859
+          },
+          {
+            "choice": "TypeScript",
+            "probability": 9.876969425019936e-05
+          },
+          {
+            "choice": "JavaScript",
+            "probability": 8.787292496386447e-05
+          },
+          {
+            "choice": "GLiNER2",
+            "probability": 8.182446629915584e-05
+          },
+          {
+            "choice": "bash",
+            "probability": 7.494686047459002e-05
+          },
+          {
+            "choice": "PostgreSQL",
+            "probability": 6.606064879188605e-05
+          },
+          {
+            "choice": "Rust",
+            "probability": 5.824242459511966e-05
+          },
+          {
+            "choice": "PEFT",
+            "probability": 4.1644289326171395e-05
+          },
+          {
+            "choice": "browser",
+            "probability": 3.5719756829031975e-05
+          },
+          {
+            "choice": "Docker",
+            "probability": 3.0974223683169445e-05
+          },
+          {
+            "choice": "docker",
+            "probability": 2.0813217466546956e-05
+          },
+          {
+            "choice": "Transformers",
+            "probability": 1.4606290002485053e-05
+          },
+          {
+            "choice": "Kubernetes",
+            "probability": 1.3332085168844342e-05
+          }
+        ],
+        "expected_action": "reject",
+        "match": true,
+        "name": "unknown_task_type_rejected",
+        "reasons": [
+          "tool_not_allowlisted",
+          "decision_confidence_below_threshold"
+        ],
+        "task_type": "tool_use"
+      },
+      "name": "unknown_task_type_rejected",
+      "observed_model_id": "gpt-6-astra",
+      "policy_record": true,
+      "reasons_match": true,
+      "request": "Do the quantum compilation pass.",
+      "response": "Python and PyTorch can approximate it.",
+      "task_type": "quantum_compilation"
+    },
+    {
+      "actual_action": "allow",
+      "actual_reasons": [],
+      "configured_action": "allow",
+      "decision_choices": [
+        {
+          "choice": "PyTorch",
+          "probability": 0.91
+        },
+        {
+          "choice": "Python",
+          "probability": 0.82
+        }
+      ],
+      "expected_action": "allow",
+      "expected_reasons": [],
+      "match": true,
+      "model_backed": {
+        "actual_action": "reject",
+        "decision_choices": [
+          {
+            "choice": "PyTorch",
+            "probability": 0.9941720807502601
+          },
+          {
+            "choice": "Python",
+            "probability": 0.8361321562304874
+          },
+          {
+            "choice": "python",
+            "probability": 0.7845980481684282
+          },
+          {
+            "choice": "SQL",
+            "probability": 1.155788994771005e-05
+          },
+          {
+            "choice": "Java",
+            "probability": 1.1393123371514831e-05
+          },
+          {
+            "choice": "git",
+            "probability": 9.555793101362884e-06
+          },
+          {
+            "choice": "Docker",
+            "probability": 8.537426178972471e-06
+          },
+          {
+            "choice": "bash",
+            "probability": 8.400547167749326e-06
+          },
+          {
+            "choice": "docker",
+            "probability": 5.6511016200915816e-06
+          },
+          {
+            "choice": "JavaScript",
+            "probability": 4.967787154330049e-06
+          },
+          {
+            "choice": "PostgreSQL",
+            "probability": 4.07436184846194e-06
+          },
+          {
+            "choice": "Go",
+            "probability": 3.871674255084962e-06
+          },
+          {
+            "choice": "browser",
+            "probability": 3.6951109402030875e-06
+          },
+          {
+            "choice": "C++",
+            "probability": 3.343107876712908e-06
+          },
+          {
+            "choice": "PEFT",
+            "probability": 2.75431618610459e-06
+          },
+          {
+            "choice": "GLiNER2",
+            "probability": 2.2989690277587644e-06
+          },
+          {
+            "choice": "TypeScript",
+            "probability": 1.9315137046858208e-06
+          },
+          {
+            "choice": "Kubernetes",
+            "probability": 1.9108578834742643e-06
+          },
+          {
+            "choice": "Rust",
+            "probability": 1.7087088009326282e-06
+          },
+          {
+            "choice": "Transformers",
+            "probability": 9.037356666594554e-07
+          }
+        ],
+        "expected_action": "allow",
+        "match": false,
+        "name": "no_tool_execution",
+        "reasons": [
+          "tool_not_allowlisted"
+        ],
+        "task_type": "tool_use"
+      },
+      "name": "no_tool_execution",
+      "observed_model_id": "gpt-6-astra",
+      "policy_record": true,
+      "reasons_match": true,
+      "request": "Fix the Python parser bug and add a regression test.",
+      "response": "Python and PyTorch are allowlisted for this task.",
+      "task_type": "coding"
+    }
+  ],
+  "deterministic_pass": true,
+  "model_backed": true,
+  "model_backed_meta": {
+    "path": "/home/sansha/jev-model-base"
+  },
+  "model_backed_pass": false,
+  "model_path": "/home/sansha/jev-model-base",
+  "module_import_audit": {
+    "imports": [
+      "__future__",
+      "config",
+      "gliner2",
+      "model",
+      "typing"
+    ],
+    "module": "jev.tool_task",
+    "side_effect_free": true,
+    "side_effect_imports": [],
+    "socket_imported": false,
+    "subprocess_imported": false
+  },
+  "no_tool_execution": {
+    "assertion": "resolve_tool_task returns a policy record and never executes a tool",
+    "guard_enabled": true,
+    "guard_held": true,
+    "violations": []
+  },
+  "pass": true,
+  "policy": {
+    "allowed_models": [
+      {
+        "aliases": [
+          "gpt-6-astra-latest"
+        ],
+        "id": "gpt-6-astra",
+        "provider": "openai-compatible"
+      },
+      {
+        "aliases": [
+          "deepseek-chat"
+        ],
+        "id": "deepseek-4.1f",
+        "provider": "deepseek-compatible"
+      }
+    ],
+    "allowed_programming_languages": [
+      "Python",
+      "JavaScript",
+      "TypeScript",
+      "Go",
+      "Rust",
+      "Java",
+      "SQL",
+      "C++"
+    ],
+    "allowed_technologies": [
+      "PyTorch",
+      "GLiNER2",
+      "PostgreSQL",
+      "Docker",
+      "Kubernetes",
+      "Transformers",
+      "PEFT"
+    ],
+    "allowed_tools": [
+      "python",
+      "bash",
+      "git",
+      "browser",
+      "sql",
+      "docker"
+    ],
+    "decision_actions": [
+      "allow",
+      "review",
+      "reject"
+    ],
+    "decision_choices": [
+      "PyTorch",
+      "GLiNER2",
+      "PostgreSQL",
+      "Docker",
+      "Kubernetes",
+      "Transformers",
+      "PEFT",
+      "Python",
+      "JavaScript",
+      "TypeScript",
+      "Go",
+      "Rust",
+      "Java",
+      "SQL",
+      "C++",
+      "python",
+      "bash",
+      "git",
+      "browser",
+      "docker"
+    ],
+    "min_confidence": 0.75,
+    "name": "jev-tool-task",
+    "require_evidence": true,
+    "task_actions": {
+      "code_review": "allow",
+      "coding": "allow",
+      "data_analysis": "allow",
+      "debugging": "allow",
+      "operations": "review",
+      "other": "reject",
+      "planning": "review",
+      "research": "review",
+      "tool_use": "review",
+      "translation": "allow"
+    },
+    "task_types": [
+      "coding",
+      "code_review",
+      "debugging",
+      "research",
+      "planning",
+      "operations",
+      "translation",
+      "data_analysis",
+      "tool_use",
+      "other"
+    ],
+    "unknown_policy": "reject",
+    "version": 1
+  },
+  "seconds": 4.555116624105722
+}

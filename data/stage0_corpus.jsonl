@@ -1,0 +1,16 @@
+{"text": "The 2026 service stack uses Python for services, PostgreSQL for durable state, and Kubernetes for scheduling."}
+{"text": "Team A recommends Rust for the message bridge and TypeScript for the operator console."}
+{"text": "This deployment stores embeddings in PostgreSQL and trains adapters with PyTorch on the GPU host."}
+{"text": "For extraction we evaluate GLiNER2 against a transformer baseline and keep the GLiNER2 adapter."}
+{"text": "The ingestion path uses NATS JetStream as the default broker and Kafka for existing clusters."}
+{"text": "Docker images are built in CI; the runtime image contains no teacher API key."}
+{"text": "The 2026 benchmark reports a p95 latency target and a fixed VRAM budget for inference."}
+{"text": "Python and PyTorch remain the supported training stack, while Rust owns the broker protocol."}
+{"text": "PostgreSQL stores provenance, and Kubernetes schedules the training and inference workers."}
+{"text": "A company adopting Go for internal tooling still keeps Python for data analysis."}
+{"text": "Version 2 of the schema adds a company entity and a benchmark field measured in 2026."}
+{"text": "The recommended migration replaces the legacy daemon with Docker and Kubernetes in 2026."}
+{"text": "GLiNER2 spans are trained with a LoRA adapter, then published through an EMA shadow."}
+{"text": "NATS JetStream durable pull gives server-tracked attempts and broker-side backpressure."}
+{"text": "TypeScript and Rust front ends talk to Python services through a versioned JSON contract."}
+{"text": "The reference benchmark compares PyTorch throughput before and after LoRA fine-tuning."}

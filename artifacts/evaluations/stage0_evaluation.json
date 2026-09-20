@@ -1,0 +1,508 @@
+{
+  "checkpoint": {
+    "config_digest": "4c9e44cd02cd7e41c5d6ea796a5aa4b1ed91a59cda9ba7f96ddcf992eae1f77e",
+    "created_at": 1789938376.6656537,
+    "ema_updates": 4,
+    "model_id": "fastino/gliner2-base-v1",
+    "model_revision": "79c3a777abc572b4767922f3916cf63fb5754df2",
+    "path": "runs/jev/stage0/latest.pt",
+    "reset_id": 0,
+    "schema_digest": "08d7a9923e57698d280027695bc49c2d91749f0f26aad5ca946e7503fd5f916a",
+    "training_steps": 4
+  },
+  "config": {
+    "digest": "4c9e44cd02cd7e41c5d6ea796a5aa4b1ed91a59cda9ba7f96ddcf992eae1f77e",
+    "model_id": "fastino/gliner2-base-v1",
+    "model_revision": "79c3a777abc572b4767922f3916cf63fb5754df2",
+    "path": "configs/example.yaml",
+    "schema_digest": "08d7a9923e57698d280027695bc49c2d91749f0f26aad5ca946e7503fd5f916a"
+  },
+  "device": {
+    "capability": "12.0",
+    "name": "NVIDIA GeForce RTX 5090 D"
+  },
+  "heldout": {
+    "labels": [
+      "technology",
+      "date",
+      "company"
+    ],
+    "path": "/home/sansha/Github/zenjev/data/stage0_heldout.jsonl",
+    "records": 12,
+    "sha256": "0f7483412d9bf41b1bef7d9be617c7cb6e7c37ea886f126dc36798e288014af8"
+  },
+  "timing": {
+    "base_eval_seconds": 0.6798821471165866,
+    "base_load_seconds": 2.9115162710659206,
+    "ema_eval_seconds": 0.1985032190568745,
+    "live_eval_seconds": 0.20152959902770817,
+    "total_seconds": 5.780852074967697
+  },
+  "variants": {
+    "base": {
+      "metrics": {
+        "overall": {
+          "f1": 0.8571428571428571,
+          "fn": 5,
+          "fp": 4,
+          "precision": 0.8709677419354839,
+          "recall": 0.84375,
+          "tp": 27
+        },
+        "per_label": {
+          "company": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 3,
+            "precision": 0.0,
+            "recall": 0.0,
+            "tp": 0
+          },
+          "date": {
+            "f1": 1.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "tp": 5
+          },
+          "technology": {
+            "f1": 0.8800000000000001,
+            "fn": 5,
+            "fp": 1,
+            "precision": 0.9565217391304348,
+            "recall": 0.8148148148148148,
+            "tp": 22
+          }
+        }
+      },
+      "predictions": [
+        {
+          "company": [],
+          "date": [
+            "2026"
+          ],
+          "technology": [
+            "PostgreSQL",
+            "Python"
+          ]
+        },
+        {
+          "company": [],
+          "date": [],
+          "technology": [
+            "Docker",
+            "Kubernetes"
+          ]
+        },
+        {
+          "company": [
+            "PyTorch"
+          ],
+          "date": [],
+          "technology": [
+            "GLiNER2",
+            "PyTorch"
+          ]
+        },
+        {
+          "company": [],
+          "date": [],
+          "technology": [
+            "Rust",
+            "TypeScript"
+          ]
+        },
+        {
+          "company": [],
+          "date": [
+            "2026"
+          ],
+          "technology": [
+            "NATS",
+            "PostgreSQL"
+          ]
+        },
+        {
+          "company": [],
+          "date": [
+            "2026"
+          ],
+          "technology": [
+            "Kafka"
+          ]
+        },
+        {
+          "company": [],
+          "date": [],
+          "technology": [
+            "PyTorch",
+            "Rust"
+          ]
+        },
+        {
+          "company": [
+            "The company"
+          ],
+          "date": [],
+          "technology": [
+            "Docker",
+            "Kubernetes",
+            "PostgreSQL"
+          ]
+        },
+        {
+          "company": [],
+          "date": [
+            "2026"
+          ],
+          "technology": [
+            "GLiNER2"
+          ]
+        },
+        {
+          "company": [
+            "PyTorch"
+          ],
+          "date": [
+            "2026"
+          ],
+          "technology": [
+            "PyTorch"
+          ]
+        },
+        {
+          "company": [],
+          "date": [],
+          "technology": [
+            "NATS",
+            "PostgreSQL"
+          ]
+        },
+        {
+          "company": [],
+          "date": [],
+          "technology": [
+            "Docker",
+            "Kubernetes",
+            "Python trainer"
+          ]
+        }
+      ],
+      "seconds": 0.6798821471165866
+    },
+    "ema_snapshot": {
+      "metrics": {
+        "overall": {
+          "f1": 0.8571428571428571,
+          "fn": 5,
+          "fp": 4,
+          "precision": 0.8709677419354839,
+          "recall": 0.84375,
+          "tp": 27
+        },
+        "per_label": {
+          "company": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 3,
+            "precision": 0.0,
+            "recall": 0.0,
+            "tp": 0
+          },
+          "date": {
+            "f1": 1.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "tp": 5
+          },
+          "technology": {
+            "f1": 0.8800000000000001,
+            "fn": 5,
+            "fp": 1,
+            "precision": 0.9565217391304348,
+            "recall": 0.8148148148148148,
+            "tp": 22
+          }
+        }
+      },
+      "predictions": [
+        {
+          "company": [],
+          "date": [
+            "2026"
+          ],
+          "technology": [
+            "PostgreSQL",
+            "Python"
+          ]
+        },
+        {
+          "company": [],
+          "date": [],
+          "technology": [
+            "Docker",
+            "Kubernetes"
+          ]
+        },
+        {
+          "company": [
+            "PyTorch"
+          ],
+          "date": [],
+          "technology": [
+            "GLiNER2",
+            "PyTorch"
+          ]
+        },
+        {
+          "company": [],
+          "date": [],
+          "technology": [
+            "Rust",
+            "TypeScript"
+          ]
+        },
+        {
+          "company": [],
+          "date": [
+            "2026"
+          ],
+          "technology": [
+            "NATS",
+            "PostgreSQL"
+          ]
+        },
+        {
+          "company": [],
+          "date": [
+            "2026"
+          ],
+          "technology": [
+            "Kafka"
+          ]
+        },
+        {
+          "company": [],
+          "date": [],
+          "technology": [
+            "PyTorch",
+            "Rust"
+          ]
+        },
+        {
+          "company": [
+            "The company"
+          ],
+          "date": [],
+          "technology": [
+            "Docker",
+            "Kubernetes",
+            "PostgreSQL"
+          ]
+        },
+        {
+          "company": [],
+          "date": [
+            "2026"
+          ],
+          "technology": [
+            "GLiNER2"
+          ]
+        },
+        {
+          "company": [
+            "PyTorch"
+          ],
+          "date": [
+            "2026"
+          ],
+          "technology": [
+            "PyTorch"
+          ]
+        },
+        {
+          "company": [],
+          "date": [],
+          "technology": [
+            "NATS",
+            "PostgreSQL"
+          ]
+        },
+        {
+          "company": [],
+          "date": [],
+          "technology": [
+            "Docker",
+            "Kubernetes",
+            "Python trainer"
+          ]
+        }
+      ],
+      "seconds": 0.1985032190568745,
+      "snapshot": {
+        "checkpoint": "runs/jev/stage0/latest.pt",
+        "config_digest": "4c9e44cd02cd7e41c5d6ea796a5aa4b1ed91a59cda9ba7f96ddcf992eae1f77e",
+        "ema_step": 4,
+        "generation": 1,
+        "model_id": "fastino/gliner2-base-v1",
+        "reset_id": 0,
+        "schema_digest": "08d7a9923e57698d280027695bc49c2d91749f0f26aad5ca946e7503fd5f916a"
+      }
+    },
+    "live_lora": {
+      "metrics": {
+        "overall": {
+          "f1": 0.8571428571428571,
+          "fn": 5,
+          "fp": 4,
+          "precision": 0.8709677419354839,
+          "recall": 0.84375,
+          "tp": 27
+        },
+        "per_label": {
+          "company": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 3,
+            "precision": 0.0,
+            "recall": 0.0,
+            "tp": 0
+          },
+          "date": {
+            "f1": 1.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "tp": 5
+          },
+          "technology": {
+            "f1": 0.8800000000000001,
+            "fn": 5,
+            "fp": 1,
+            "precision": 0.9565217391304348,
+            "recall": 0.8148148148148148,
+            "tp": 22
+          }
+        }
+      },
+      "predictions": [
+        {
+          "company": [],
+          "date": [
+            "2026"
+          ],
+          "technology": [
+            "PostgreSQL",
+            "Python"
+          ]
+        },
+        {
+          "company": [],
+          "date": [],
+          "technology": [
+            "Docker",
+            "Kubernetes"
+          ]
+        },
+        {
+          "company": [
+            "PyTorch"
+          ],
+          "date": [],
+          "technology": [
+            "GLiNER2",
+            "PyTorch"
+          ]
+        },
+        {
+          "company": [],
+          "date": [],
+          "technology": [
+            "Rust",
+            "TypeScript"
+          ]
+        },
+        {
+          "company": [],
+          "date": [
+            "2026"
+          ],
+          "technology": [
+            "NATS",
+            "PostgreSQL"
+          ]
+        },
+        {
+          "company": [],
+          "date": [
+            "2026"
+          ],
+          "technology": [
+            "Kafka"
+          ]
+        },
+        {
+          "company": [],
+          "date": [],
+          "technology": [
+            "PyTorch",
+            "Rust"
+          ]
+        },
+        {
+          "company": [
+            "The company"
+          ],
+          "date": [],
+          "technology": [
+            "Docker",
+            "Kubernetes",
+            "PostgreSQL"
+          ]
+        },
+        {
+          "company": [],
+          "date": [
+            "2026"
+          ],
+          "technology": [
+            "GLiNER2"
+          ]
+        },
+        {
+          "company": [
+            "PyTorch"
+          ],
+          "date": [
+            "2026"
+          ],
+          "technology": [
+            "PyTorch"
+          ]
+        },
+        {
+          "company": [],
+          "date": [],
+          "technology": [
+            "NATS",
+            "PostgreSQL"
+          ]
+        },
+        {
+          "company": [],
+          "date": [],
+          "technology": [
+            "Docker",
+            "Kubernetes",
+            "Python trainer"
+          ]
+        }
+      ],
+      "seconds": 0.20152959902770817
+    }
+  }
+}

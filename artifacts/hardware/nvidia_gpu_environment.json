@@ -1,0 +1,1 @@
+{"pass": true, "torch": "2.9.1+cu128", "cuda": "12.8", "devices": [{"index": 0, "name": "NVIDIA GeForce RTX 5090 D", "total_memory": 33670758400, "capability": "12.0"}], "nvidia_smi": "NVIDIA GeForce RTX 5090 D, 32607 MiB, 595.84"}

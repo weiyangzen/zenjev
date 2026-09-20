@@ -1,0 +1,97 @@
+{
+  "pass": true,
+  "cuda": "12.8",
+  "torch": "2.9.1+cu128",
+  "gpu": "NVIDIA GeForce RTX 5090 D",
+  "gpu_capability": "12.0",
+  "model_id": "fastino/gliner2-base-v1",
+  "model_revision": "79c3a777abc572b4767922f3916cf63fb5754df2",
+  "config_digest": "4c9e44cd02cd7e41c5d6ea796a5aa4b1ed91a59cda9ba7f96ddcf992eae1f77e",
+  "schema_digest": "08d7a9923e57698d280027695bc49c2d91749f0f26aad5ca946e7503fd5f916a",
+  "base_load_seconds": 2.9609049540013075,
+  "distill_seconds": 0.7459692410193384,
+  "distilled_records": 17,
+  "training_steps": 4,
+  "ema_updates": 4,
+  "model_generation": 5,
+  "losses": [
+    1.592606544494629,
+    0.680870771408081,
+    11.252537727355957,
+    8.582871437072754
+  ],
+  "events": [
+    {
+      "step": 1,
+      "loss": 1.592606544494629,
+      "model_generation": 2,
+      "reset_required": false,
+      "reset_reason": null,
+      "checkpoint": "runs/jev/stage0/adapter-step-00000001.pt"
+    },
+    {
+      "step": 2,
+      "loss": 0.680870771408081,
+      "model_generation": 3,
+      "reset_required": false,
+      "reset_reason": null,
+      "checkpoint": "runs/jev/stage0/adapter-step-00000002.pt"
+    },
+    {
+      "step": 3,
+      "loss": 11.252537727355957,
+      "model_generation": 4,
+      "reset_required": false,
+      "reset_reason": null,
+      "checkpoint": "runs/jev/stage0/adapter-step-00000003.pt"
+    },
+    {
+      "step": 4,
+      "loss": 8.582871437072754,
+      "model_generation": 5,
+      "reset_required": false,
+      "reset_reason": null,
+      "checkpoint": "runs/jev/stage0/adapter-step-00000004.pt"
+    }
+  ],
+  "inference_observations": [
+    {
+      "seconds": 0.042491663014516234,
+      "generation": 1,
+      "ema_step": 0,
+      "reset_id": 0
+    },
+    {
+      "seconds": 0.07638842705637217,
+      "generation": 1,
+      "ema_step": 0,
+      "reset_id": 0
+    },
+    {
+      "seconds": 0.033377557061612606,
+      "generation": 1,
+      "ema_step": 0,
+      "reset_id": 0
+    },
+    {
+      "seconds": 0.05729676806367934,
+      "generation": 1,
+      "ema_step": 0,
+      "reset_id": 0
+    }
+  ],
+  "inference_p50_seconds": 0.05729676806367934,
+  "inference_p95_seconds": 0.07638842705637217,
+  "training_seconds": 2.168816019082442,
+  "training_steps_per_second": 1.844324260244202,
+  "checkpoint": "runs/jev/stage0/adapter-step-00000004.pt",
+  "checkpoint_resume": {
+    "training_steps": 4,
+    "ema_updates": 4,
+    "reset_id": 0
+  },
+  "resumed_schema_digest": "08d7a9923e57698d280027695bc49c2d91749f0f26aad5ca946e7503fd5f916a",
+  "peak_vram_bytes": 4280697344,
+  "errors": [],
+  "dataset_sha256": "dfc909cc3340d1a66c775a871394b6e2ee57bd2560d5022ec62abf2101116c6e"
+}

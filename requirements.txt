@@ -1,0 +1,4 @@
+# Runtime extra: install with `pip install -r requirements.txt`
+gliner2[local]>=0.3.0
+torch>=2.1
+peft>=0.10

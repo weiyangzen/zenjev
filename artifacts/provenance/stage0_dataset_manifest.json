@@ -1,0 +1,137 @@
+{
+  "dataset": "artifacts/datasets/stage0_distilled.jsonl",
+  "dataset_sha256": "dfc909cc3340d1a66c775a871394b6e2ee57bd2560d5022ec62abf2101116c6e",
+  "records": 17,
+  "config_digest": "4c9e44cd02cd7e41c5d6ea796a5aa4b1ed91a59cda9ba7f96ddcf992eae1f77e",
+  "schema_digest": "08d7a9923e57698d280027695bc49c2d91749f0f26aad5ca946e7503fd5f916a",
+  "teacher": {
+    "provider": "local-gliner2-base-bootstrap",
+    "external_teacher": false,
+    "model_id": "fastino/gliner2-base-v1",
+    "model_revision": "79c3a777abc572b4767922f3916cf63fb5754df2",
+    "note": "offline bootstrap for the environment demonstration; configure teacher.* for a live trusted route"
+  },
+  "sources": [
+    {
+      "name": "local_corpus",
+      "uri": "data/source.jsonl#L1",
+      "content_sha256": "f61c5858c9627db407614dc08047c800dc27b93591741b82ac4cef2b874e507e",
+      "license_note": "User-provided corpus; verify redistribution rights."
+    },
+    {
+      "name": "stage0_corpus",
+      "uri": "data/stage0_corpus.jsonl#L1",
+      "content_sha256": "0b12ae0e7f96a46daa77de6c95effd9ea6f195312c7b86ff779c3d4f46a04c53",
+      "license_note": "Project-authored Stage 0 corpus; no third-party redistribution."
+    },
+    {
+      "name": "stage0_corpus",
+      "uri": "data/stage0_corpus.jsonl#L2",
+      "content_sha256": "6f6d7c0abdc0eafd87850a9394f3cd634f2c4ceb002b21fdc926b5cb9311c63c",
+      "license_note": "Project-authored Stage 0 corpus; no third-party redistribution."
+    },
+    {
+      "name": "stage0_corpus",
+      "uri": "data/stage0_corpus.jsonl#L3",
+      "content_sha256": "f851f1784c9d679af013c804763506f79737d53e2468d065f2ef31584cd48d2e",
+      "license_note": "Project-authored Stage 0 corpus; no third-party redistribution."
+    },
+    {
+      "name": "stage0_corpus",
+      "uri": "data/stage0_corpus.jsonl#L4",
+      "content_sha256": "294912f2f9c66071666fc4f188ec760edbf9987c6988561450ce8a058b26159e",
+      "license_note": "Project-authored Stage 0 corpus; no third-party redistribution."
+    },
+    {
+      "name": "stage0_corpus",
+      "uri": "data/stage0_corpus.jsonl#L5",
+      "content_sha256": "4d2bd19f85aa930477f3f7974a3e206ab56d8e5307d75a001c520a14356e6b22",
+      "license_note": "Project-authored Stage 0 corpus; no third-party redistribution."
+    },
+    {
+      "name": "stage0_corpus",
+      "uri": "data/stage0_corpus.jsonl#L6",
+      "content_sha256": "52c115718e9f1d7c872fdf7fc1d17198f4c78358ab4015fcecb02b482eda4bd5",
+      "license_note": "Project-authored Stage 0 corpus; no third-party redistribution."
+    },
+    {
+      "name": "stage0_corpus",
+      "uri": "data/stage0_corpus.jsonl#L7",
+      "content_sha256": "ed2697ebb381eb6f414c550768a3c8bbd94f65e151c53979b526e7d8621db04d",
+      "license_note": "Project-authored Stage 0 corpus; no third-party redistribution."
+    },
+    {
+      "name": "stage0_corpus",
+      "uri": "data/stage0_corpus.jsonl#L8",
+      "content_sha256": "69f449180ca0da1f576bac16de0858054705dd41e733c749c81a8353094a282b",
+      "license_note": "Project-authored Stage 0 corpus; no third-party redistribution."
+    },
+    {
+      "name": "stage0_corpus",
+      "uri": "data/stage0_corpus.jsonl#L9",
+      "content_sha256": "99fd1be7621fb740a68c0dec3082a04e4393afef7ec8e9e7a2ec4f55841ece3e",
+      "license_note": "Project-authored Stage 0 corpus; no third-party redistribution."
+    },
+    {
+      "name": "stage0_corpus",
+      "uri": "data/stage0_corpus.jsonl#L10",
+      "content_sha256": "d951b2817b41bf93e6c00f2073974256a981c3964e1694c09fd531249afbe123",
+      "license_note": "Project-authored Stage 0 corpus; no third-party redistribution."
+    },
+    {
+      "name": "stage0_corpus",
+      "uri": "data/stage0_corpus.jsonl#L11",
+      "content_sha256": "6cd9c432d37db273f37ac260b9440fb45212eda8dd5c3b34710bfe03db0dfbe6",
+      "license_note": "Project-authored Stage 0 corpus; no third-party redistribution."
+    },
+    {
+      "name": "stage0_corpus",
+      "uri": "data/stage0_corpus.jsonl#L12",
+      "content_sha256": "b747de030323da3aad815edfbd0145f518e593e6a121d95327eaaabb2d144f38",
+      "license_note": "Project-authored Stage 0 corpus; no third-party redistribution."
+    },
+    {
+      "name": "stage0_corpus",
+      "uri": "data/stage0_corpus.jsonl#L13",
+      "content_sha256": "1ee3091baa5fb8bb8a6839847ef3b9a03f0f20ea0f7dd3bd302945d717f5cadc",
+      "license_note": "Project-authored Stage 0 corpus; no third-party redistribution."
+    },
+    {
+      "name": "stage0_corpus",
+      "uri": "data/stage0_corpus.jsonl#L14",
+      "content_sha256": "4af3765ae006aa79bd40123c2c273301fd002730c352201ffa6f30130c2605ec",
+      "license_note": "Project-authored Stage 0 corpus; no third-party redistribution."
+    },
+    {
+      "name": "stage0_corpus",
+      "uri": "data/stage0_corpus.jsonl#L15",
+      "content_sha256": "719a18918a75f208a7f5a2fb98188acb55fe201bd9915f551a3d88813cf11242",
+      "license_note": "Project-authored Stage 0 corpus; no third-party redistribution."
+    },
+    {
+      "name": "stage0_corpus",
+      "uri": "data/stage0_corpus.jsonl#L16",
+      "content_sha256": "aa6b7148d5d2fce76ba901d8e5326e8762040b707076ec6f2f8b994e05a1ceeb",
+      "license_note": "Project-authored Stage 0 corpus; no third-party redistribution."
+    }
+  ],
+  "record_hashes": [
+    "7631b4619d21f5c2b73134d52a2afbed7abf529785cc4c3321841f199d033c85",
+    "e319fb2a477266f105632f45175a033a8e3984eafc49347d43d1c256c515c453",
+    "1bff77e304ae83364b150f2f658cf8457540bc63019486b7c894aafe8efe5396",
+    "304f15ee920b19f7c8a645f5093a6192ece21b2669e45ce48df25ef610c6c174",
+    "d5466e745eac4ebf70aafab26e6751cd965a09fb52e6ac836e0fada5bad43b9c",
+    "55e6756338a9fe57ae4ad2928b9b362c3ba2eac19775f0f2de1bc90dd5c8be1f",
+    "716a96d4934e352f52921ebacf8e48f61388c430f3723e3388c0449f16215bbc",
+    "e52825da203addafd2115ed6d96a82e0b500f89fa91a5ba6fad210c3d0e4874d",
+    "3f53244dfed861787cdfada99e7edc16c9fdb213b3cc1f462878b2816eaaaba1",
+    "b66a07e5a6ae5a999c0e7a8072964c5113c00f0e73751ec17974b1c84083c380",
+    "df6efd58120d59da9b38deeb69ea738efd4f8283fa8127b1178f048ce8a33353",
+    "aca9ca118aebc0ce6f8aa12fc49fedf50c4ff9cc1b2684f53779cb3258b4a67c",
+    "3aab27dbc516ad3eb9666bb5b7b8db5acf2a67cbe29ae1cf864ac52dc4d53dc1",
+    "f665f99a2ee30f61ec9a0432e16af0d8f2c5dcb59aa22339733ddeb76071a2e6",
+    "afbb74320c0f15ad91d80c8171403a9d8c0e260e4e71601716366a4a1cc8b361",
+    "e8add84de38bbfb91403adbbee513d6d8076ac753a6ece7fbdced8263c108a3d",
+    "8d8676f88275bd90c6044dca0b7430d1d69b1e679069c212b71b4edddc79a7fe"
+  ]
+}

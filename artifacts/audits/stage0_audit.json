@@ -1,0 +1,113 @@
+{
+  "checklist": {
+    "blueprint_modified": false,
+    "blueprint_sha256": "04651a537d9cdad0be728af0fb4bf2f67df63ec6f45a6ed55033ff51ce46c542",
+    "counts": {
+      "accepted": 39,
+      "self_tested": 0,
+      "todo": 0
+    },
+    "note": "counts are reported from the authoritative parser; this audit never mutates checklist state",
+    "spec_digest": "53cd7fad80ce52bb3e21aa4d0c1b2299a0da024cac104f9fab3e91034829d90f",
+    "total": 39
+  },
+  "failure_count": 0,
+  "findings": [
+    {
+      "check": "secret_scan",
+      "detail": {
+        "hit_count": 0,
+        "scanned_files": 96
+      },
+      "status": "pass"
+    },
+    {
+      "check": "secret_scan_placeholders",
+      "detail": {
+        "count": 1,
+        "entries": [
+          {
+            "key": "secret_ref",
+            "line": 90,
+            "match": "plai...",
+            "path": "tests/test_mq.py",
+            "pattern": "assigned_secret"
+          }
+        ]
+      },
+      "status": "info"
+    },
+    {
+      "check": "config_secret_references",
+      "detail": [
+        "configs/example.yaml",
+        "configs/jev_tool_task.yaml"
+      ],
+      "status": "pass"
+    },
+    {
+      "check": "mq_artifact_paths",
+      "detail": {
+        "checked": 3
+      },
+      "status": "pass"
+    },
+    {
+      "check": "data_files",
+      "detail": [
+        {
+          "evidence": "User-provided corpus; verify redistribution rights.",
+          "external_keys": [],
+          "path": "data/source.jsonl",
+          "records": 1,
+          "status": "documented"
+        },
+        {
+          "evidence": "Project-authored Stage 0 corpus; no third-party redistribution.",
+          "external_keys": [],
+          "path": "data/stage0_corpus.jsonl",
+          "records": 16,
+          "status": "documented"
+        },
+        {
+          "evidence": "synthetic Stage 0 corpus authored in-repo; no external source/URI/license metadata",
+          "external_keys": [],
+          "path": "data/stage0_heldout.jsonl",
+          "records": 12,
+          "status": "project_authored"
+        }
+      ],
+      "status": "pass"
+    },
+    {
+      "check": "model_manifest",
+      "detail": {
+        "model_id": "fastino/gliner2-base-v1",
+        "path": "artifacts/model_manifest.json",
+        "revision": "79c3a777abc572b4767922f3916cf63fb5754df2"
+      },
+      "status": "pass"
+    },
+    {
+      "check": "blueprint_checklist",
+      "detail": {
+        "blueprint_modified": false,
+        "blueprint_sha256": "04651a537d9cdad0be728af0fb4bf2f67df63ec6f45a6ed55033ff51ce46c542",
+        "counts": {
+          "accepted": 39,
+          "self_tested": 0,
+          "todo": 0
+        },
+        "note": "counts are reported from the authoritative parser; this audit never mutates checklist state",
+        "spec_digest": "53cd7fad80ce52bb3e21aa4d0c1b2299a0da024cac104f9fab3e91034829d90f",
+        "total": 39
+      },
+      "status": "info"
+    }
+  ],
+  "generated_at": "2026-09-20T21:11:37Z",
+  "pass": true,
+  "repository_root": "/home/sansha/Github/zenjev",
+  "scanned_files": 96,
+  "schema_version": 1
+}

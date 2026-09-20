@@ -1,0 +1,2 @@
+# Test extra: install with `pip install -r requirements-test.txt`
+pytest>=8

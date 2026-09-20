@@ -228,9 +228,14 @@ def _to_training_output(config: JevConfig, output: dict[str, Any]) -> dict[str, 
     if structures:
         result["json_structures"] = [{config.schema.name: structures}]
         result["json_descriptions"] = {config.schema.name: {f.name: f.description for f in config.schema.fields if f.description}}
-    relations = {k: output[k] for k in config.schema.relations if k in output}
-    if relations:
-        result["relations"] = [{name: value} for name, value in relations.items()]
+    relation_entries: list[dict[str, Any]] = []
+    for name in config.schema.relations:
+        if name not in output:
+            continue
+        for pair in output[name]:
+            relation_entries.append({name: {"head": pair["head"], "tail": pair["tail"]}})
+    if relation_entries:
+        result["relations"] = relation_entries
     result["provenance"] = {"schema_digest": config.schema.digest(), "evidence": output.get("_evidence", {})}
     return result
 

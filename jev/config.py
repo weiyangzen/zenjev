@@ -276,6 +276,127 @@ class ToolTaskPolicy:
         }
 
 
+MQ_ADAPTERS = ("nats-jetstream", "kafka", "iggy", "mock")
+MQ_START_POSITIONS = ("new", "first", "last", "by_offset", "by_timestamp")
+
+
+def _remote_endpoint(endpoint: str) -> bool:
+    host = endpoint.split("://", 1)[-1].split(":", 1)[0].split("/", 1)[0].strip("[]").lower()
+    return host not in {"", "localhost", "127.0.0.1", "::1"}
+
+
+@dataclass(frozen=True)
+class MqConfig:
+    """Configurable external-MQ ingestion contract (§1.5). Values, never secrets."""
+
+    enabled: bool = False
+    adapter: str = "nats-jetstream"
+    endpoints: tuple[str, ...] = ()
+    stream: str = "JEV_RECORDS"
+    subject: str = "jev.records"
+    durable_name: str = "jev-trainer"
+    consumer_group: str | None = None
+    start_position: str = "new"
+    start_offset: int | None = None
+    start_timestamp: int | None = None
+    batch: int = 64
+    max_bytes: int = 33_554_432
+    ack_wait_seconds: int = 30
+    max_ack_pending: int = 16
+    prefetch: int = 32
+    max_deliver: int = 5
+    dlq_subject: str = "jev.dlq"
+    dlq_path: str = "runs/jev/mq/dlq.jsonl"
+    quarantine_path: str = "runs/jev/mq/quarantine.jsonl"
+    wal_path: str = "runs/jev/mq/wal.bin"
+    socket_path: str = "runs/jev/mq/bridge.sock"
+    bridge_config: str = "runs/jev/mq/bridge.json"
+    metrics_path: str = "artifacts/mq/metrics.json"
+    replay_buffer: str = "runs/jev/mq/replay-buffer.jsonl"
+    dedup_window: int = 10_000
+    tls_required: bool = True
+    ca_cert: str | None = None
+    client_cert: str | None = None
+    client_key: str | None = None
+    secret_ref: str | None = None
+    source_path: str | None = None
+    state_path: str | None = None
+    exit_after_drain: bool = False
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any] | None) -> "MqConfig | None":
+        if value is None:
+            return None
+        if not isinstance(value, dict):
+            raise ConfigError("mq must be an object")
+        out = cls(**{key: value[key] for key in value if key in cls.__dataclass_fields__})
+        if out.adapter not in MQ_ADAPTERS:
+            raise ConfigError(f"mq.adapter must be one of {MQ_ADAPTERS}")
+        if out.start_position not in MQ_START_POSITIONS:
+            raise ConfigError(f"mq.start_position must be one of {MQ_START_POSITIONS}")
+        if out.start_position == "by_offset" and out.start_offset is None:
+            raise ConfigError("mq.start_position=by_offset requires start_offset")
+        if out.start_position == "by_timestamp" and out.start_timestamp is None:
+            raise ConfigError("mq.start_position=by_timestamp requires start_timestamp")
+        positive = {
+            "batch": out.batch,
+            "max_bytes": out.max_bytes,
+            "ack_wait_seconds": out.ack_wait_seconds,
+            "max_ack_pending": out.max_ack_pending,
+            "prefetch": out.prefetch,
+            "max_deliver": out.max_deliver,
+            "dedup_window": out.dedup_window,
+        }
+        if any(number <= 0 for number in positive.values()):
+            raise ConfigError("mq batch/max_bytes/ack_wait/max_ack_pending/prefetch/max_deliver/dedup_window must be positive")
+        if out.secret_ref is not None and not (out.secret_ref.startswith("env:") or out.secret_ref.startswith("file:")):
+            raise ConfigError("mq.secret_ref must be an env:/file: reference, never a secret value")
+        if out.client_cert and not out.client_key or out.client_key and not out.client_cert:
+            raise ConfigError("mq.client_cert and mq.client_key must be provided together")
+        paths = (out.wal_path, out.socket_path, out.quarantine_path, out.replay_buffer, out.bridge_config)
+        if any(not path for path in paths):
+            raise ConfigError("mq paths must be non-empty")
+        if not out.enabled:
+            return out
+        if out.adapter == "mock":
+            if not out.source_path:
+                raise ConfigError("mq.adapter=mock requires source_path (test/smoke use only)")
+        else:
+            if not out.endpoints:
+                raise ConfigError(f"mq.adapter={out.adapter} requires at least one endpoint")
+            if any(_remote_endpoint(endpoint) and not out.tls_required for endpoint in out.endpoints):
+                raise ConfigError("non-TLS remote MQ endpoints fail closed")
+        if out.adapter == "nats-jetstream" and (not out.stream or not out.durable_name):
+            raise ConfigError("mq.adapter=nats-jetstream requires stream and durable_name")
+        if out.adapter == "kafka" and not out.consumer_group:
+            raise ConfigError("mq.adapter=kafka requires consumer_group")
+        return out
+
+    def as_contract(self) -> dict[str, Any]:
+        return {
+            "enabled": self.enabled,
+            "adapter": self.adapter,
+            "endpoints": list(self.endpoints),
+            "stream": self.stream,
+            "subject": self.subject,
+            "durable_name": self.durable_name,
+            "consumer_group": self.consumer_group,
+            "start_position": self.start_position,
+            "start_offset": self.start_offset,
+            "start_timestamp": self.start_timestamp,
+            "batch": self.batch,
+            "max_bytes": self.max_bytes,
+            "ack_wait_seconds": self.ack_wait_seconds,
+            "max_ack_pending": self.max_ack_pending,
+            "prefetch": self.prefetch,
+            "max_deliver": self.max_deliver,
+            "dlq_subject": self.dlq_subject,
+            "tls_required": self.tls_required,
+            "secret_ref": self.secret_ref,
+            "dedup_window": self.dedup_window,
+        }
+
+
 @dataclass(frozen=True)
 class DriftPolicy:
     eval_window: int = 256
@@ -333,6 +454,7 @@ class JevConfig:
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
     model_revision: str = MODEL_REVISIONS["fastino/gliner2-base-v1"]
     tool_task: ToolTaskPolicy | None = None
+    mq: MqConfig | None = None
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "JevConfig":
@@ -356,10 +478,10 @@ class JevConfig:
             raise ConfigError("runtime publish/checkpoint cadence must be positive")
         if runtime.max_checkpoints < 1 or runtime.reset_warmup_steps < 0:
             raise ConfigError("runtime max_checkpoints must be positive and reset_warmup_steps nonnegative")
-        return cls(model_id, UserSchema.from_dict(value.get("schema", {})), sources, TeacherConfig.from_dict(value.get("teacher", {})), DriftPolicy.from_dict(value.get("drift", {})), runtime, revision, ToolTaskPolicy.from_dict(value.get("tool_task")))
+        return cls(model_id, UserSchema.from_dict(value.get("schema", {})), sources, TeacherConfig.from_dict(value.get("teacher", {})), DriftPolicy.from_dict(value.get("drift", {})), runtime, revision, ToolTaskPolicy.from_dict(value.get("tool_task")), MqConfig.from_dict(value.get("mq")))
 
     def canonical(self) -> dict[str, Any]:
-        return {"model_id": self.model_id, "model_revision": self.model_revision, "schema": self.schema.as_teacher_contract(), "sources": [vars(x) for x in self.sources], "teacher": vars(self.teacher), "drift": vars(self.drift), "runtime": vars(self.runtime), "tool_task": self.tool_task.as_contract() if self.tool_task else None}
+        return {"model_id": self.model_id, "model_revision": self.model_revision, "schema": self.schema.as_teacher_contract(), "sources": [vars(x) for x in self.sources], "teacher": vars(self.teacher), "drift": vars(self.drift), "runtime": vars(self.runtime), "tool_task": self.tool_task.as_contract() if self.tool_task else None, "mq": self.mq.as_contract() if self.mq else None}
 
     def digest(self) -> str:
         return hashlib.sha256(json.dumps(self.canonical(), sort_keys=True, ensure_ascii=False).encode()).hexdigest()

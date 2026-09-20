@@ -1,0 +1,12 @@
+{"text": "In 2026 the team recommends Python and PostgreSQL for the control plane.", "labels": {"technology": ["Python", "PostgreSQL"], "date": ["2026"]}}
+{"text": "Kubernetes schedules the workers while Docker packages the runtime.", "labels": {"technology": ["Kubernetes", "Docker"], "date": []}}
+{"text": "GLiNER2 extracts spans and PyTorch trains the adapter.", "labels": {"technology": ["GLiNER2", "PyTorch"], "date": []}}
+{"text": "Rust implements the bridge and TypeScript implements the console.", "labels": {"technology": ["Rust", "TypeScript"], "date": []}}
+{"text": "The 2026 evaluation keeps NATS for transport and PostgreSQL for provenance.", "labels": {"technology": ["NATS", "PostgreSQL"], "date": ["2026"]}}
+{"text": "Kafka remains the compatibility path for existing clusters in 2026.", "labels": {"technology": ["Kafka"], "date": ["2026"]}}
+{"text": "Python services use PyTorch checkpoints and Rust tooling for validation.", "labels": {"technology": ["Python", "PyTorch", "Rust"], "date": []}}
+{"text": "The company runs Kubernetes with Docker images and a PostgreSQL backup.", "labels": {"technology": ["Kubernetes", "Docker", "PostgreSQL"], "company": [], "date": []}}
+{"text": "TypeScript dashboards report the 2026 benchmark for the GLiNER2 runtime.", "labels": {"technology": ["TypeScript", "GLiNER2"], "date": ["2026"]}}
+{"text": "A benchmark in 2026 compares LoRA adapters trained with PyTorch.", "labels": {"technology": ["PyTorch"], "date": ["2026"]}}
+{"text": "PostgreSQL and NATS carry provenance for the Python trainer.", "labels": {"technology": ["PostgreSQL", "NATS", "Python"], "date": []}}
+{"text": "Docker and Kubernetes deploy the Rust bridge next to the Python trainer.", "labels": {"technology": ["Docker", "Kubernetes", "Rust", "Python"], "date": []}}

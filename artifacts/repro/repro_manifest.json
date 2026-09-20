@@ -1,0 +1,188 @@
+{
+  "config_digest": "4c9e44cd02cd7e41c5d6ea796a5aa4b1ed91a59cda9ba7f96ddcf992eae1f77e",
+  "configs": {
+    "configs/example.yaml": {
+      "config_digest": "4c9e44cd02cd7e41c5d6ea796a5aa4b1ed91a59cda9ba7f96ddcf992eae1f77e",
+      "model_id": "fastino/gliner2-base-v1",
+      "model_revision": "79c3a777abc572b4767922f3916cf63fb5754df2",
+      "schema_digest": "08d7a9923e57698d280027695bc49c2d91749f0f26aad5ca946e7503fd5f916a"
+    },
+    "configs/jev_tool_task.yaml": {
+      "config_digest": "d5061f0c3152f8dc78cfc8ded41e6a5d681f6392078267046998737860581538",
+      "model_id": "fastino/gliner2-base-v1",
+      "model_revision": "79c3a777abc572b4767922f3916cf63fb5754df2",
+      "schema_digest": "27e764552cfbac9ad15d1e3d6fbff27c0e206f339f39e3b31c899f7badd4c3ca"
+    }
+  },
+  "deferred_commands": [
+    {
+      "command": "python3 scripts/smoke_mq_nvidia_gpu.py",
+      "cwd": ".",
+      "reason": "requires a live external broker on the designated NVIDIA GPU host; G11 soak not performed in this environment"
+    }
+  ],
+  "files": {
+    "Docs/stage0_zenjev_blueprint.md": {
+      "bytes": 47942,
+      "sha256": "04651a537d9cdad0be728af0fb4bf2f67df63ec6f45a6ed55033ff51ce46c542"
+    },
+    "artifacts/model_manifest.json": {
+      "bytes": 479,
+      "sha256": "75865a03cf035789f3018c0eaea8472398e53c2d31e154b11af18d75e4010407"
+    },
+    "configs/example.yaml": {
+      "bytes": 2774,
+      "sha256": "45e90d1f70bb6937753b73f3fe71886057d508348583b177e94f17ffa70adc46"
+    },
+    "configs/jev_tool_task.yaml": {
+      "bytes": 3363,
+      "sha256": "c1cfed18d52ffa601c853769d1e36f1e943d6095bcec58b4581981e2e5b2f6e3"
+    }
+  },
+  "generated_at": "2026-09-20T21:11:37Z",
+  "git": {
+    "commit": "1b5b1694124dab7618309e85c05a4159ff19aa95",
+    "status_porcelain": [
+      " M .gitignore",
+      " M Docs/stage0_zenjev_blueprint.md",
+      " M Docs/stage0_zenjev_blueprint_Gantt.md",
+      " M artifacts/nvidia_gpu_model_smoke.json",
+      " M artifacts/nvidia_gpu_train_ema_smoke.json",
+      " M configs/example.yaml",
+      " M jev/cli.py",
+      " M jev/config.py",
+      " M jev/distill.py",
+      " M jev/tool_task.py",
+      " M scripts/validate_nvidia_gpu.py",
+      " M tests/test_model_config_distill.py",
+      "?? Docs/runbooks/",
+      "?? artifacts/audits/",
+      "?? artifacts/benchmarks/",
+      "?? artifacts/datasets/",
+      "?? artifacts/evaluations/",
+      "?? artifacts/hardware/",
+      "?? artifacts/mq/",
+      "?? artifacts/pipeline/",
+      "?? artifacts/provenance/",
+      "?? artifacts/recovery/",
+      "?? artifacts/repro/",
+      "?? benchmarks/",
+      "?? data/stage0_corpus.jsonl",
+      "?? data/stage0_heldout.jsonl",
+      "?? jev/mq.py",
+      "?? mq/",
+      "?? requirements-test.txt",
+      "?? requirements-train.txt",
+      "?? requirements.txt",
+      "?? scripts/audit_stage0.py",
+      "?? scripts/build_repro_bundle.py",
+      "?? scripts/evaluate_stage0.py",
+      "?? scripts/evaluate_tool_task.py",
+      "?? scripts/recovery_drill.py",
+      "?? scripts/run_stage0_pipeline.py",
+      "?? scripts/smoke_mq.py",
+      "?? tests/benchmarks/",
+      "?? tests/recovery/",
+      "?? tests/test_governance.py",
+      "?? tests/test_mq.py"
+    ]
+  },
+  "lockfiles": {
+    "mq/Cargo.lock": "78ede83e14a46493ad8024559b6276e8369cf952eb607dfb86281538c25d2b47",
+    "uv.lock": "b6cfda6992ce7a9ea2f155d64968799569615d1d3b3a8af05aed041077d78a5b"
+  },
+  "repository_root": "/home/sansha/Github/zenjev",
+  "schema_digest": "08d7a9923e57698d280027695bc49c2d91749f0f26aad5ca946e7503fd5f916a",
+  "schema_version": 1,
+  "validation_commands": [
+    {
+      "command": "python3 -m compileall -q jev scripts",
+      "cwd": ".",
+      "evidence": "exit code 0"
+    },
+    {
+      "command": "python3 -m pytest -q",
+      "cwd": ".",
+      "evidence": "pytest summary"
+    },
+    {
+      "command": "python3 scripts/validate_blueprint.py --check",
+      "cwd": ".",
+      "evidence": "stdout blueprint_ok"
+    },
+    {
+      "command": "python3 scripts/smoke.py",
+      "cwd": ".",
+      "evidence": "stdout jev_smoke_ok"
+    },
+    {
+      "command": "cargo fmt --check",
+      "cwd": "mq",
+      "evidence": "exit code 0"
+    },
+    {
+      "command": "cargo clippy --locked -- -D warnings",
+      "cwd": "mq",
+      "evidence": "exit code 0"
+    },
+    {
+      "command": "cargo test --locked",
+      "cwd": "mq",
+      "evidence": "cargo test summary"
+    },
+    {
+      "command": "python3 scripts/smoke_mq.py",
+      "cwd": ".",
+      "evidence": "artifacts/mq/smoke.json"
+    },
+    {
+      "command": "python3 -m jev.cli validate --config configs/example.yaml",
+      "cwd": ".",
+      "evidence": "stdout JSON"
+    },
+    {
+      "command": "python3 -m jev.cli validate --config configs/jev_tool_task.yaml",
+      "cwd": ".",
+      "evidence": "stdout JSON"
+    },
+    {
+      "command": "python3 -m jev.cli extract --config configs/example.yaml --text '2026最佳技术栈包括 Python 和 PostgreSQL'",
+      "cwd": ".",
+      "evidence": "stdout inference JSON"
+    },
+    {
+      "command": "python3 scripts/recovery_drill.py --config configs/example.yaml --model-path /home/sansha/jev-model-base --output artifacts/recovery/collapse_recovery.json",
+      "cwd": ".",
+      "evidence": "artifacts/recovery/collapse_recovery.json"
+    },
+    {
+      "command": "python3 scripts/validate_nvidia_gpu.py",
+      "cwd": ".",
+      "evidence": "stdout JSON pass field"
+    },
+    {
+      "command": "JEV_MODEL_PATH=/home/sansha/jev-model-base python3 scripts/smoke_nvidia_gpu.py --output artifacts/nvidia_gpu_train_ema_smoke.json",
+      "cwd": ".",
+      "evidence": "artifacts/nvidia_gpu_train_ema_smoke.json"
+    },
+    {
+      "command": "python3 scripts/audit_stage0.py",
+      "cwd": ".",
+      "evidence": "artifacts/audits/stage0_audit.json"
+    },
+    {
+      "command": "python3 scripts/build_repro_bundle.py",
+      "cwd": ".",
+      "evidence": "artifacts/repro/repro_manifest.json"
+    }
+  ],
+  "versions": {
+    "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)",
+    "cuda_available": true,
+    "python": "3.12.3",
+    "python_full": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "torch": "2.9.1+cu128",
+    "torch_cuda": "12.8"
+  }
+}

@@ -16,6 +16,11 @@ sources:
     location: data/source.jsonl
     license_note: User-provided corpus; verify redistribution rights.
     max_documents: 1000
+  - name: stage0_corpus
+    kind: jsonl
+    location: data/stage0_corpus.jsonl
+    license_note: Project-authored Stage 0 corpus; no third-party redistribution.
+    max_documents: 100
 teacher:
   provider: openai-compatible
   model: gpt-6-astra
@@ -37,8 +42,40 @@ drift:
   f1_absolute_drop: 0.15
   f1_relative_floor: 0.80
   validation_loss_ratio: 2.0
+# Continual external-MQ ingestion (§1.5). Disabled by default; set
+# `enabled: true` and fill the operator-selected adapter fields to activate.
+# Credentials are secret references only (env:/file:) and are never values.
+mq:
+  enabled: false
+  adapter: nats-jetstream
+  endpoints: ["tls://nats.internal.example:4222"]
+  stream: JEV_RECORDS
+  subject: jev.records
+  durable_name: jev-trainer
+  consumer_group: null
+  start_position: new
+  batch: 64
+  max_bytes: 33554432
+  ack_wait_seconds: 30
+  max_ack_pending: 16
+  prefetch: 32
+  max_deliver: 5
+  dlq_subject: jev.dlq
+  dlq_path: runs/jev/mq/dlq.jsonl
+  quarantine_path: runs/jev/mq/quarantine.jsonl
+  wal_path: runs/jev/mq/wal.bin
+  socket_path: runs/jev/mq/bridge.sock
+  bridge_config: runs/jev/mq/bridge.json
+  metrics_path: artifacts/mq/metrics.json
+  replay_buffer: runs/jev/mq/replay-buffer.jsonl
+  dedup_window: 10000
+  tls_required: true
+  secret_ref: env:JEV_MQ_TOKEN
+  source_path: null
+  state_path: null
+  exit_after_drain: false
 runtime:
-  device: auto
+  device: cuda
   # Set this to a staged snapshot directory, or use JEV_MODEL_PATH on the host.
   model_path: null
   inference_max_length: 512
@@ -48,8 +85,8 @@ runtime:
   ema_decay: 0.999
   learning_rate: 0.0001
   grad_clip_norm: 1.0
-  publish_every_steps: 10
-  checkpoint_every_steps: 10
+  publish_every_steps: 1
+  checkpoint_every_steps: 1
   max_checkpoints: 3
   reset_warmup_steps: 2
   seed: 42

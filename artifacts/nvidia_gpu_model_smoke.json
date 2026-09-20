@@ -1,80 +1,112 @@
 {
   "pass": true,
   "host": "sansha-DeskMini-Series",
-  "gpu": "NVIDIA GPU",
+  "gpu": "NVIDIA GeForce RTX 5090 D",
   "torch": "2.9.1+cu128",
   "cuda": "12.8",
   "model_id": "fastino/gliner2-base-v1",
   "model_revision": "79c3a777abc572b4767922f3916cf63fb5754df2",
   "model_path": "/home/sansha/jev-model-base",
-  "base_load_seconds": 2.7175299811642617,
+  "schema_digest": "08d7a9923e57698d280027695bc49c2d91749f0f26aad5ca946e7503fd5f916a",
+  "config_digest": "4c9e44cd02cd7e41c5d6ea796a5aa4b1ed91a59cda9ba7f96ddcf992eae1f77e",
+  "base_load_seconds": 3.115369823994115,
   "inference_seconds": [
-    0.2952792579308152,
-    0.06804810697212815,
-    0.010365762049332261,
-    0.010124808875843883,
-    0.010095722042024136
+    0.3204879348631948,
+    0.07089995103888214,
+    0.010529763996601105
   ],
-  "inference_p50_seconds": 0.010365762049332261,
-  "inference_p95_seconds": 0.2952792579308152,
-  "peak_vram_bytes": 863133184,
-  "schema_digest": "dda6d3d67610f1b7c29b25be94782c456ba51586967de8bf81ccf176a2b38f06",
-  "result": {
-    "tech_stack_2026": [
-      {
-        "recommendation": {
-          "text": "PostgreSQL",
-          "confidence": 0.7150553464889526,
-          "start": 21,
-          "end": 31
-        },
-        "rationale": null
-      }
-    ],
-    "entities": {
-      "technology": [
-        {
-          "text": "PostgreSQL",
-          "confidence": 0.9991069436073303,
-          "start": 21,
-          "end": 31
-        },
-        {
-          "text": "Python",
-          "confidence": 0.9977557063102722,
-          "start": 12,
-          "end": 18
-        }
-      ],
-      "company": [],
-      "version": [],
-      "benchmark": [],
-      "date": []
-    },
-    "confidence": {
-      "label": "high",
-      "confidence": 0.9999997615814209
-    },
-    "relation_extraction": {
-      "recommended_with": [
-        {
-          "head": {
+  "inference_p50_seconds": 0.07089995103888214,
+  "inference_p95_seconds": 0.07089995103888214,
+  "peak_vram_bytes": 1697813504,
+  "results": [
+    {
+      "text": "The 2026 stack uses Python and PostgreSQL.",
+      "generation": 1,
+      "ema_step": 0,
+      "entities": {
+        "technology": [
+          {
             "text": "Python",
-            "confidence": 0.6338732838630676,
-            "start": 12,
-            "end": 18
+            "confidence": 0.9962350726127625,
+            "start": 20,
+            "end": 26
           },
-          "tail": {
+          {
             "text": "PostgreSQL",
-            "confidence": 0.9752973914146423,
-            "start": 21,
-            "end": 31
+            "confidence": 0.9948215484619141,
+            "start": 31,
+            "end": 41
           }
-        }
-      ],
-      "maintained_by": [],
-      "replaces": []
+        ],
+        "company": [],
+        "version": [],
+        "benchmark": [],
+        "date": [
+          {
+            "text": "2026",
+            "confidence": 0.5045045018196106,
+            "start": 4,
+            "end": 8
+          }
+        ]
+      }
+    },
+    {
+      "text": "Docker and Kubernetes deploy the service.",
+      "generation": 1,
+      "ema_step": 0,
+      "entities": {
+        "technology": [
+          {
+            "text": "Docker",
+            "confidence": 0.9998464584350586,
+            "start": 0,
+            "end": 6
+          },
+          {
+            "text": "Kubernetes",
+            "confidence": 0.9989680051803589,
+            "start": 11,
+            "end": 21
+          }
+        ],
+        "company": [],
+        "version": [],
+        "benchmark": [],
+        "date": []
+      }
+    },
+    {
+      "text": "GLiNER2 and PyTorch train the adapter.",
+      "generation": 1,
+      "ema_step": 0,
+      "entities": {
+        "technology": [
+          {
+            "text": "GLiNER2",
+            "confidence": 0.984302282333374,
+            "start": 0,
+            "end": 7
+          },
+          {
+            "text": "PyTorch",
+            "confidence": 0.9480855464935303,
+            "start": 12,
+            "end": 19
+          }
+        ],
+        "company": [
+          {
+            "text": "PyTorch",
+            "confidence": 0.6937465667724609,
+            "start": 12,
+            "end": 19
+          }
+        ],
+        "version": [],
+        "benchmark": [],
+        "date": []
+      }
     }
-  },
-  "gpu_capability": "12.0"
+  ]
 }
