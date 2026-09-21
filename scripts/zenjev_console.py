@@ -76,6 +76,21 @@ def with_ages(heartbeats: dict[str, Any]) -> dict[str, Any]:
     return heartbeats
 
 
+def decision_mix(counters: dict[str, Any]) -> dict[str, Any]:
+    allow = int(counters.get("decision_allow") or 0)
+    review = int(counters.get("decision_review") or 0)
+    reject = int(counters.get("decision_reject") or 0)
+    total = allow + review + reject
+    if not total:
+        return {"allow": 0, "review": 0, "reject": 0, "total": 0}
+    return {
+        "allow": round(100.0 * allow / total, 1),
+        "review": round(100.0 * review / total, 1),
+        "reject": round(100.0 * reject / total, 1),
+        "total": total,
+    }
+
+
 def meta_block() -> dict[str, Any]:
     """Compact scalars sent with every delta and stored in the snapshot."""
     heartbeats = with_ages(read_heartbeats(SERVICES))
@@ -107,6 +122,8 @@ def meta_block() -> dict[str, Any]:
         },
         "mq": mq,
         "train_batch": loop.get("train_batch"),
+        "instruction_sha16": loop.get("instruction_sha16"),
+        "pairs_built": loop.get("pairs_built"),
         "skipped_bad_capture": (loop.get("counters") or {}).get("skipped_bad_capture"),
         "deploy_progress": {
             "next_deploy_in": deploy.get("next_deploy_in"),
@@ -116,7 +133,10 @@ def meta_block() -> dict[str, Any]:
         "feeder": {
             "uptime_seconds": (heartbeats.get("feeder") or {}).get("uptime_seconds"),
             "totals": (heartbeats.get("feeder") or {}).get("totals"),
+            "cursor": (heartbeats.get("feeder") or {}).get("cursor"),
+            "queue_path": (heartbeats.get("feeder") or {}).get("queue_path"),
         },
+        "decision_mix": decision_mix(loop.get("counters") or {}),
         "fabricator": {
             "uptime_seconds": (heartbeats.get("fabricator") or {}).get("uptime_seconds"),
             "emitted_total": (heartbeats.get("fabricator") or {}).get("emitted_total"),

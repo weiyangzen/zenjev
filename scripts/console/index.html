@@ -196,6 +196,11 @@
         <span class="chip" id="deploy-next">next —</span>
         <span class="chip">batch <b id="train-batch">—</b></span>
         <span class="chip">filtered <b id="filtered">—</b></span>
+        <span class="chip">pairs <b id="pairs">—</b></span>
+        <span class="chip" id="decision-mix">mix —</span>
+      </div>
+      <div class="sub" id="cursor-sub">corpus cursor —</div>
+      <div class="row" style="margin-top:6px">
       </div>
       <div class="sub" id="serve-sub">not deployed yet</div>
     </div>
@@ -300,6 +305,7 @@ function taskCard(event) {
     event.synthetic ? `<span class="chip synth">synthetic${event.canary ? " · canary" : ""}</span>` : `<span class="chip">real</span>`,
     event.trained ? `<span class="chip train">trained</span>` : "",
     `<span class="chip">${(event.model || "?").slice(0, 28)}</span>`,
+    event.task_type ? `<span class="chip">${escapeHtml(String(event.task_type))}</span>` : "",
     `<span class="chip">${event.latency_ms ?? "—"} ms</span>`,
     `<span class="chip">gen ${event.generation ?? "—"}</span>`,
   ].join(" ");
@@ -449,6 +455,21 @@ function applyMeta(body) {
   }
   $("train-batch").textContent = fmt(body.train_batch);
   $("filtered").textContent = fmt(body.skipped_bad_capture);
+  $("pairs").textContent = fmt(body.pairs_built);
+  $("generation-sub").textContent = served
+    ? `inference serving gen ${served} · instruction ${body.instruction_sha16 || "—"}`
+    : (body.instruction_sha16 ? `distilling with instruction ${body.instruction_sha16}` : "no deploy yet");
+  const mix = body.decision_mix || {};
+  if (mix.total) {
+    $("decision-mix").textContent = `mix allow ${mix.allow}% · review ${mix.review}% · reject ${mix.reject}% (${fmt(mix.total)})`;
+    $("decision-mix").className = "chip " + (mix.reject > 50 ? "bad" : (mix.allow >= 40 ? "ok" : "warn"));
+  }
+  const cursor = (body.feeder || {}).cursor || {};
+  if (cursor.files_total) {
+    const gb = (value) => (value / 1073741824).toFixed(2) + " GiB";
+    const queue = body.loop || {};
+    $("cursor-sub").textContent = `corpus ${fmt(cursor.files_finished)}/${fmt(cursor.files_total)} files · ${gb(cursor.bytes_consumed || 0)}/${gb(cursor.bytes_total || 0)} · training cursor ${fmt((queue.queue_cursor_bytes || 0) / 1048576)} MiB consumed · backlog ${fmt((queue.queue_backlog_bytes || 0) / 1048576)} MiB · now ${(cursor.current_file || "—").split("/").pop()} @ ${fmt(cursor.current_offset)}B`;
+  }
 
   history.rate.push(loop.records_per_minute);
   history.lat.push(loop.latency_p95_ms);

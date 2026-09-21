@@ -290,7 +290,12 @@ def resolve_tool_task(
         reasons.append("evidence_missing")
     for field_name, allowed in (("tool", policy.allowed_tools), ("programming_language", policy.allowed_programming_languages), ("technology", policy.allowed_technologies)):
         if allowed:
-            unknown = set(_entity_values(output, field_name)) - set(allowed)
+            allowed_folded = {value.casefold() for value in allowed}
+            unknown = {
+                value
+                for value in _entity_values(output, field_name)
+                if value.casefold() not in allowed_folded
+            }
             if unknown:
                 reasons.append(f"{field_name}_not_allowlisted")
     choices = _probability_choices(output, ("decision_choice", "decision_choices", "decision_route"))
@@ -299,8 +304,15 @@ def resolve_tool_task(
     action = policy.task_actions.get(task_type or "")
     if action is None:
         action = "review" if policy.unknown_policy == "unmapped" else "reject"
+    # Hard safety failures reject; soft quality signals (unknown labels, low
+    # confidence, missing evidence) are review-worthy. The router never invokes
+    # a tool in any case, so a soft signal must not be escalated to "reject".
+    hard_reject = {"model_not_allowlisted", "task_type_unknown"}
     if reasons:
-        action = "review" if "confidence_below_threshold" in reasons and "model_not_allowlisted" not in reasons else "reject"
+        if hard_reject & set(reasons):
+            action = "reject"
+        elif action != "reject":
+            action = "review"
     return {
         "policy": policy.name,
         "policy_version": policy.version,

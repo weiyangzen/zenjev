@@ -21,7 +21,12 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 ARTIFACTS = REPO / "artifacts" / "perpetual"
-FEED_DIR = REPO / "runs" / "jev" / "feed"
+# The queue lives inside the operator's data root. The feeder appends envelopes
+# there and the Rust dir-spool bridge consumes them; the dump tree itself stays
+# read-only and the feeder skips this directory when scanning for captures.
+FEED_DIR = pathlib.Path(
+    os.environ.get("ZENJEV_FEED_DIR", "/home/sansha/data/jevraw/_zenjev")
+)
 PERPETUAL_RUNS = REPO / "runs" / "jev" / "perpetual"
 LOGS_DIR = REPO / "runs" / "jev" / "logs"
 EVENTS_PATH = ARTIFACTS / "events.jsonl"

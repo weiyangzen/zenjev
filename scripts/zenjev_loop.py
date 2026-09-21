@@ -55,10 +55,20 @@ CHECKPOINT_DIR = PERPETUAL_RUNS / "checkpoints"
 LEDGER_PATH = PERPETUAL_RUNS / "generations.jsonl"
 INFERENCE_PORT = 8788
 
-os.environ.setdefault("JEV_MODEL_PATH", str(pathlib.Path.home() / "jev-model-base"))
 
 
 JUDGE_CHARS = 1200
+# One inference pass turns a raw capture into a supervised pair: the instructed
+# request is the input and the model-generated schema is the target. Raw
+# request/response text is never trained on directly.
+INSTRUCTION = (
+    "Extract the schema for this engineering request: task_type, decision_choice, "
+    "task_detail, tool, programming_language, framework, technology, model. "
+    "Return only schema fields grounded in the request."
+)
+INSTRUCTION_SHA16 = __import__("hashlib").sha256(INSTRUCTION.encode("utf-8")).hexdigest()[:16]
+PAIRS_PATH = PERPETUAL_RUNS / "pairs.jsonl"
+PAIRS_MAX_BYTES = 512 * 1024 * 1024
 
 
 def _batched_loss(model: Any, config: Any, pairs: list[tuple[str, dict[str, Any]]]) -> Any:
@@ -122,6 +132,54 @@ def _synthesize(config: Any, text: str, judgment: dict[str, Any]) -> dict[str, A
     }
 
 
+def shape_pair_target(
+    config: Any, judgment: dict[str, Any], extraction: dict[str, Any]
+) -> dict[str, Any]:
+    """Shape a model judgment + extraction into the GLiNER2 training target.
+
+    The raw capture is never a training target: entities come from grounded
+    extraction spans and classifications come from the judged probability
+    distribution, both restricted to the configured schema.
+    """
+    entities: dict[str, list[str]] = {}
+    raw_entities = extraction.get("entities") if isinstance(extraction.get("entities"), dict) else {}
+    for name, values in raw_entities.items():
+        if name not in config.schema.entities:
+            continue
+        texts: list[str] = []
+        for item in values if isinstance(values, list) else [values]:
+            if isinstance(item, dict) and isinstance(item.get("text"), str):
+                texts.append(item["text"])
+            elif isinstance(item, str):
+                texts.append(item)
+        if texts:
+            entities[name] = texts[:12]
+    classifications: list[dict[str, Any]] = []
+    schema_classifications = dict(getattr(config.schema, "classifications", {}) or {})
+    for task, labels in schema_classifications.items():
+        payload = judgment.get(task) or {}
+        probabilities = payload.get("probabilities") or {}
+        chosen: list[str] = []
+        if probabilities:
+            ranked = sorted(
+                ((label, float(value)) for label, value in probabilities.items()),
+                key=lambda item: (-item[1], item[0]),
+            )
+            top_k = 1 if task == "task_type" else 3
+            threshold = 0.0 if task == "task_type" else 0.25
+            chosen = [label for label, probability in ranked[:top_k] if probability >= threshold]
+            if not chosen:
+                chosen = [ranked[0][0]]
+        elif isinstance(payload.get("label"), str):
+            chosen = [payload["label"]]
+        if chosen:
+            classifications.append({"task": task, "labels": list(labels), "true_label": chosen})
+    target: dict[str, Any] = {"entities": entities, "classifications": classifications}
+    if config.schema.entity_descriptions:
+        target["entity_descriptions"] = dict(config.schema.entity_descriptions)
+    return target
+
+
 class Runtime:
     def __init__(self, config: Any) -> None:
         from jev.model import gliner2_step
@@ -153,6 +211,7 @@ class Runtime:
             self.runtime,
             checkpoint_dir=CHECKPOINT_DIR,
             resume_from=resume if resume.exists() else None,
+            resume_config_drift=True,
         )
         # Generation ids are global and monotonic across restarts: resume the
         # counter from the durable ledger before anything publishes again.
@@ -286,9 +345,9 @@ class Runtime:
         action = str(decision.get("action") or "review")
         self.counters[f"decision_{action}"] += 1
 
-        trained = False
+        paired = False
         if not synthetic or self.admission == "training_admitted":
-            trained = self._admit_training(output, request_text)
+            paired = self._distill_pair(output, request_text)
 
         self.event(
             {
@@ -296,13 +355,15 @@ class Runtime:
                 "synthetic": synthetic,
                 "canary": bool(envelope.get("canary")),
                 "model": model_id,
+                "task_type": decision.get("task_type"),
                 "action": action,
                 "reasons": decision.get("reasons", []),
                 "choices": decision.get("decision_choices", [])[:4],
                 "latency_ms": round(latency_ms, 2),
                 "generation": result.get("generation"),
                 "ema_step": result.get("ema_step"),
-                "trained": trained,
+                "paired": paired,
+                "instruction_sha16": INSTRUCTION_SHA16,
                 "request_preview": request_text[:220],
                 "response_preview": response_text[:160],
                 "record_id": envelope.get("record_id"),
@@ -347,33 +408,61 @@ class Runtime:
             "decision_choice": choice_payload.get("decision_choice", choice_payload),
         }
 
-    def _admit_training(self, output: dict[str, Any], text: str) -> bool:
-        """RSI self-training admission (canonical synthesize recipe).
+    def _distill_pair(self, output: dict[str, Any], request_text: str) -> bool:
+        """Distil one instructed pair: (instruction + request) -> schema target.
 
-        The live LoRA model judges the text into schema probability
-        distributions; the distributions are distilled into one
-        instruction-style training record, exactly as proven by
-        ``scripts/run_jevraw_loop.py``.
+        The raw capture is never trained on directly. The live LoRA model judges
+        the instructed request, the EMA snapshot contributes grounded entity
+        spans, and the two form a schema-shaped training pair that is persisted
+        for offline distillation/RL before it enters the training stream.
         """
         if self.config.tool_task is None:
             return False
+        instructed = f"{INSTRUCTION}\n\n{request_text}"[:1600]
         try:
-            judgment = self._judge(text[:1200])
-            example = _synthesize(self.config, text, judgment)
+            judgment = self._judge(instructed[:JUDGE_CHARS])
         except Exception:
-            self.counters["label_rejected"] += 1
+            self.counters["judge_failed"] += 1
             return False
-        self.counters["training_examples"] += 1
-        self.batch_buffer.append((text, example["output"]))
+
+        target = shape_pair_target(self.config, judgment, output)
+        if not target["entities"] and not target["classifications"]:
+            self.counters["pair_empty"] += 1
+            return False
+        pair = {"input": instructed, "output": target}
+        self.counters["pairs_built"] += 1
+        self._append_pair(pair, request_text)
+
+        self.batch_buffer.append((instructed, target))
         if len(self.batch_buffer) >= self.batch_size:
             pending = self.batch_buffer
             self.batch_buffer = []
             try:
                 self.stream.submit({"batch": pending})
+                self.counters["pairs_trained"] += len(pending)
             except RuntimeError:
                 self.counters["trainer_closed"] += 1
                 return False
         return True
+
+    def _append_pair(self, pair: dict[str, Any], request_text: str) -> None:
+        try:
+            import os as _os
+
+            if PAIRS_PATH.exists() and PAIRS_PATH.stat().st_size > PAIRS_MAX_BYTES:
+                _os.replace(PAIRS_PATH, PAIRS_PATH.with_suffix(".1.jsonl"))
+            record = {
+                "created_at": utc_now(),
+                "instruction_sha16": INSTRUCTION_SHA16,
+                "input_chars": len(pair["input"]),
+                "entities": {k: len(v) for k, v in pair["output"]["entities"].items()},
+                "classifications": {c["task"]: c["true_label"] for c in pair["output"]["classifications"]},
+                "generation": int(self.runtime.stats.model_generation),
+                "pair": pair,
+            }
+            append_jsonl(PAIRS_PATH, record)
+        except OSError:
+            self.counters["pair_write_failed"] += 1
 
     # ------------------------------------------------------------------ ledger
     def ledger_loop(self) -> None:
@@ -398,6 +487,10 @@ class Runtime:
                     "records_consumed_total": int(self.counters["real_pairs"]),
                     "training_examples_total": int(self.counters["training_examples"]),
                     "train_batch": self.batch_size,
+                    "instruction_sha16": INSTRUCTION_SHA16,
+                    "pairs_built": int(self.counters["pairs_built"]),
+                    "queue_cursor_bytes": self._spool_committed(),
+                    "queue_backlog_bytes": self._spool_backlog(),
                     "loss": loss,
                     "created_at": utc_now(),
                 }
@@ -472,6 +565,10 @@ class Runtime:
                     "counters": snapshot,
                     "events": seq,
                     "train_batch": self.batch_size,
+                    "instruction_sha16": INSTRUCTION_SHA16,
+                    "pairs_built": int(self.counters["pairs_built"]),
+                    "queue_cursor_bytes": self._spool_committed(),
+                    "queue_backlog_bytes": self._spool_backlog(),
                     "records_per_minute": round(rate * 60.0, 2),
                     "seconds_since_last_record": round(now - self.last_record_at, 1),
                     "generation": int(self.runtime.stats.model_generation),
@@ -637,6 +734,7 @@ class Runtime:
 
 
 def main() -> int:
+    os.environ.setdefault("JEV_MODEL_PATH", str(pathlib.Path.home() / "jev-model-base"))
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--max-records", type=int, default=None)
     parser.add_argument("--idle-timeout", type=float, default=None)

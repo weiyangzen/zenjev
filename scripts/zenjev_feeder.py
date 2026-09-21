@@ -32,7 +32,8 @@ from jev.config import load_config
 from jev.mq import build_envelope
 
 RAW_ROOT = pathlib.Path("/home/sansha/data/jevraw")
-STATE_PATH = PERPETUAL_RUNS / "feeder-state.json"
+STATE_PATH = FEED_DIR / "feeder-state.json"
+LEGACY_STATE_PATH = PERPETUAL_RUNS / "feeder-state.json"
 SPOOL_PATH = FEED_DIR / "rawspool.ndjson"
 CONFIG_PATH = "configs/zenjev_perpetual.yaml"
 LINE_CAP = 8 * 1024 * 1024
@@ -58,6 +59,18 @@ def _walk_text(value: Any, sink: list[str], cap: int) -> None:
                 _walk_text(value[key], sink, cap)
 
 
+def _content_parts(content: Any) -> list[str]:
+    texts: list[str] = []
+    if isinstance(content, str):
+        if content.strip():
+            texts.append(content)
+    elif isinstance(content, list):
+        for part in content:
+            if isinstance(part, dict) and isinstance(part.get("text"), str) and part["text"].strip():
+                texts.append(part["text"])
+    return texts
+
+
 def _request_text(record: dict[str, Any]) -> str:
     body: Any = record.get("requestBody")
     if isinstance(body, dict):
@@ -71,6 +84,19 @@ def _request_text(record: dict[str, Any]) -> str:
                 return raw[:TEXT_CAP]
     if body is None:
         return ""
+    # Prefer the explicit user turns: agent traces carry large tool-definition
+    # preambles, and including them drowns the actual request.
+    if isinstance(body, dict):
+        messages: list[str] = []
+        for item in body.get("input", []) or []:
+            if isinstance(item, dict) and item.get("role") == "user":
+                messages.extend(_content_parts(item.get("content")))
+        if not messages and isinstance(body.get("instructions"), str):
+            messages.append(body["instructions"])
+        if messages:
+            text = "\n".join(messages).strip()
+            if len(text) >= 16:
+                return text[-TEXT_CAP:]
     sink: list[str] = []
     _walk_text(body, sink, TEXT_CAP)
     return "\n".join(sink)[:TEXT_CAP]
@@ -135,6 +161,9 @@ def _retrieved_at(record: dict[str, Any]) -> str:
 
 
 def load_state() -> dict[str, Any]:
+    if not STATE_PATH.exists() and LEGACY_STATE_PATH.exists():
+        STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        STATE_PATH.write_bytes(LEGACY_STATE_PATH.read_bytes())
     state = read_json(STATE_PATH, default=None)
     if not isinstance(state, dict) or not isinstance(state.get("files"), dict):
         state = {"files": {}}
@@ -211,9 +240,50 @@ _FILE_CACHE: dict[str, Any] = {"scan_at": 0.0, "files": []}
 def raw_files() -> list[pathlib.Path]:
     now = time.time()
     if now - float(_FILE_CACHE["scan_at"]) > 300.0 or not _FILE_CACHE["files"]:
-        _FILE_CACHE["files"] = sorted(RAW_ROOT.rglob("*.ndjson"), key=lambda path: str(path))
+        _FILE_CACHE["files"] = sorted(
+            (
+                path
+                for path in RAW_ROOT.rglob("*.ndjson")
+                if "_zenjev" not in path.parts
+            ),
+            key=lambda path: str(path),
+        )
         _FILE_CACHE["scan_at"] = now
     return list(_FILE_CACHE["files"])
+
+
+def cursor(state: dict[str, Any]) -> dict[str, Any]:
+    """Corpus cursor: how far the feeder has consumed the dump tree."""
+    files = state.get("files") if isinstance(state, dict) else None
+    if not isinstance(files, dict):
+        return {}
+    known = raw_files()
+    total = len(known)
+    consumed_bytes = 0
+    finished = 0
+    current: str | None = None
+    current_offset = 0
+    for path in known:
+        rel = str(path.relative_to(RAW_ROOT))
+        offset = int(files.get(rel, 0) or 0)
+        try:
+            size = path.stat().st_size
+        except OSError:
+            size = 0
+        consumed_bytes += min(offset, size)
+        if size and offset >= size:
+            finished += 1
+        elif current is None:
+            current = rel
+            current_offset = offset
+    return {
+        "files_total": total,
+        "files_finished": finished,
+        "bytes_consumed": consumed_bytes,
+        "bytes_total": sum(p.stat().st_size for p in known) if known else 0,
+        "current_file": current,
+        "current_offset": current_offset,
+    }
 
 
 def run_tick(
@@ -315,7 +385,7 @@ def run_tick(
         "bytes_read": bytes_read,
         "envelopes_written": written,
         "skipped": skipped,
-        "spool_path": str(SPOOL_PATH.relative_to(pathlib.Path(__file__).resolve().parents[1])),
+        "spool_path": str(SPOOL_PATH),
     }
 
 
@@ -360,8 +430,10 @@ def main() -> int:
                 "state": "running",
                 "uptime_seconds": round(time.time() - started, 1),
                 "raw_root": str(RAW_ROOT),
+                "queue_path": str(SPOOL_PATH),
                 "tick_seconds": round(time.time() - tick_started, 3),
                 "totals": totals,
+                "cursor": cursor(state),
                 "last_tick": result,
             },
         )

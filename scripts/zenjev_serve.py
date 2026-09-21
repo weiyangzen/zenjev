@@ -40,7 +40,6 @@ CHECKPOINT_DIR = PERPETUAL_RUNS / "checkpoints"
 LEDGER_PATH = PERPETUAL_RUNS / "generations.jsonl"
 DEFAULT_PORT = 8791
 
-os.environ.setdefault("JEV_MODEL_PATH", str(pathlib.Path.home() / "jev-model-base"))
 
 
 class Server:
@@ -212,6 +211,7 @@ class Server:
 
 
 def main() -> int:
+    os.environ.setdefault("JEV_MODEL_PATH", str(pathlib.Path.home() / "jev-model-base"))
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)

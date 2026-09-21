@@ -45,6 +45,7 @@ class ContinuousLoRATrainer:
         checkpoint_dir: str | Path = "runs/jev",
         resume_from: str | Path | None = None,
         warmup_evaluator: Callable[[Any], bool] | None = None,
+        resume_config_drift: bool = False,
     ):
         self.config, self.runtime = config, runtime
         self.step_fn = step_fn or (lambda model, example: gliner2_step(model, config, example))
@@ -61,8 +62,9 @@ class ContinuousLoRATrainer:
         # constructed before the config was parsed.
         self.runtime.ema = EMAState(decay=config.runtime.ema_decay)
         self._optimizer = None
+        self.resume_config_drift = resume_config_drift
         if resume_from is not None:
-            self.resume(resume_from)
+            self.resume(resume_from, allow_config_drift=resume_config_drift)
         else:
             self.runtime.ema.initialize(self._state())
             self.runtime.publish(self.model, dict(self.runtime.ema.values), ema_step=0)
@@ -191,8 +193,15 @@ class ContinuousLoRATrainer:
             raise FileNotFoundError(f"checkpoint not found: {candidate}")
         return candidate
 
-    def resume(self, path: str | Path) -> dict[str, Any]:
-        """Restore a checkpoint into a freshly constructed base + LoRA model."""
+    def resume(self, path: str | Path, *, allow_config_drift: bool = False) -> dict[str, Any]:
+        """Restore a checkpoint into a freshly constructed base + LoRA model.
+
+        ``allow_config_drift`` performs a warm start when policy/config sections
+        changed but the LoRA architecture did not: adapter and EMA weights are
+        restored, the step counters continue, and the optimizer restarts fresh.
+        The drift is recorded in ``warm-start-events.jsonl`` so lineage stays
+        auditable. Without it a digest mismatch fails closed.
+        """
         try:
             import torch
         except ImportError as exc:
@@ -201,7 +210,8 @@ class ContinuousLoRATrainer:
         payload = torch.load(checkpoint, map_location="cpu", weights_only=False)
         if not isinstance(payload, dict) or payload.get("kind") != "adapter-only":
             raise ValueError("unsupported Jev checkpoint")
-        if payload.get("config_digest") != self.config.digest():
+        drifted = payload.get("config_digest") != self.config.digest()
+        if drifted and not allow_config_drift:
             raise ValueError("checkpoint config digest does not match current config")
         state = self._state()
         adapter = payload.get("adapter_state", {})
@@ -218,8 +228,26 @@ class ContinuousLoRATrainer:
         self.runtime.stats.training_steps = int(payload.get("training_steps", 0))
         self.runtime.stats.reset_id = int(payload.get("reset_id", 0))
         self._optimizer = self._ensure_optimizer()
-        if payload.get("optimizer_state"):
+        if payload.get("optimizer_state") and not drifted:
             self._optimizer.load_state_dict(payload["optimizer_state"])
+        if drifted:
+            self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+            with (self.checkpoint_dir / "warm-start-events.jsonl").open("a", encoding="utf-8") as fh:
+                fh.write(
+                    json.dumps(
+                        {
+                            "checkpoint": str(checkpoint),
+                            "checkpoint_config_digest": payload.get("config_digest"),
+                            "current_config_digest": self.config.digest(),
+                            "training_steps": self.runtime.stats.training_steps,
+                            "ema_updates": self.runtime.ema.updates,
+                            "reset_id": self.runtime.stats.reset_id,
+                            "adapter_keys": len(state),
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
         self.runtime.publish(
             self.model,
             dict(self.runtime.ema.values),
@@ -231,6 +259,8 @@ class ContinuousLoRATrainer:
             "training_steps": self.runtime.stats.training_steps,
             "ema_updates": self.runtime.ema.updates,
             "reset_id": self.runtime.stats.reset_id,
+            "config_drift": drifted,
+            "optimizer_restored": bool(payload.get("optimizer_state")) and not drifted,
         }
 
     def _reset_model(self, reason: str) -> None:

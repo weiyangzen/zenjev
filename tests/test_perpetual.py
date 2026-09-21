@@ -32,7 +32,7 @@ def test_dir_spool_config_renders_source_root(config):
     assert config.mq is not None and config.mq.adapter == "dir-spool"
     rendered = render_bridge_config(config)
     assert rendered["adapter"] == "dir-spool"
-    assert rendered["source_root"] == "runs/jev/feed"
+    assert rendered["source_root"] == "/home/sansha/data/jevraw/_zenjev"
     assert rendered["patterns"] == ["*.ndjson"]
     assert rendered["poll_interval_ms"] == 2000
     assert rendered["schema_digest"] == config.schema.digest()
@@ -154,3 +154,61 @@ def test_feeder_skips_failed_and_error_captures(config):
     )
     assert reason is None and envelope is not None
     assert envelope["response_status"] == 200 and envelope["capture_error"] is False
+
+
+def test_soft_reasons_route_to_review_not_reject(config):
+    from jev.tool_task import resolve_tool_task
+
+    output = {
+        "task_type": {"label": "coding", "confidence": 0.9},
+        "entities": {"technology": [{"text": "SomeUnknownTech", "confidence": 0.6}]},
+        "decision_choice": {"label": "Git", "confidence": 0.2},
+    }
+    decision = resolve_tool_task(output, config.tool_task, model_id="gpt-5.6-sol")
+    assert decision["action"] == "review"
+    assert "model_not_allowlisted" not in decision["reasons"]
+    rejected = resolve_tool_task(output, config.tool_task, model_id="unknown-model")
+    assert rejected["action"] == "reject"
+    assert "model_not_allowlisted" in rejected["reasons"]
+
+
+def test_calibrated_policy_allows_known_stack(config):
+    from jev.tool_task import resolve_tool_task
+
+    output = {
+        "task_type": {"label": "coding", "confidence": 0.9},
+        "entities": {
+            "tool": [{"text": "Docker", "start": 0, "end": 6}],
+            "technology": [{"text": "PyTorch", "confidence": 0.9}],
+        },
+        "decision_choice": {"label": "PyTorch", "confidence": 0.8},
+    }
+    decision = resolve_tool_task(output, config.tool_task, model_id="gpt-5.6-sol")
+    assert decision["allowed"] is True and decision["action"] == "allow"
+
+
+def test_shape_pair_target_uses_schema_entities_and_judgment(config):
+    from zenjev_loop import shape_pair_target
+
+    judgment = {
+        "task_type": {"probabilities": {"coding": 0.8, "tool_use": 0.2}},
+        "decision_choice": {"probabilities": {"PyTorch": 0.9, "Python": 0.6, "Docker": 0.1}},
+    }
+    extraction = {
+        "entities": {
+            "tool": [{"text": "Docker", "start": 0, "end": 6}],
+            "unknown_entity": [{"text": "ignored", "start": 7, "end": 14}],
+        }
+    }
+    target = shape_pair_target(config, judgment, extraction)
+    assert target["entities"] == {"tool": ["Docker"]}
+    tasks = {item["task"]: item["true_label"] for item in target["classifications"]}
+    assert tasks["task_type"] == ["coding"]
+    assert tasks["decision_choice"] == ["PyTorch", "Python"]
+
+
+def test_shape_pair_target_rejects_empty_judgment(config):
+    from zenjev_loop import shape_pair_target
+
+    target = shape_pair_target(config, {}, {})
+    assert target["entities"] == {} and target["classifications"] == []
