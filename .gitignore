@@ -18,3 +18,4 @@ artifacts/checkpoints/
 *.log
 mq/target/
 Cargo.toml.lock
+monitor/target/

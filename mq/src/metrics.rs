@@ -23,6 +23,8 @@ pub struct Metrics {
     pub wal_records: u64,
     pub wal_bytes: u64,
     pub consumer_lag: i64,
+    /// Highest mock loop cycle index delivered so far (0 when not looping).
+    pub loop_cycles: u64,
     pub ack_latency_ms: Latency,
     pub offset_checkpoint: Option<u64>,
     pub last_error_class: Option<String>,

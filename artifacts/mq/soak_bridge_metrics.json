@@ -1,0 +1,32 @@
+{
+  "adapter": "mock",
+  "bridge_build": "jev-mq-bridge/0.1.0",
+  "endpoint_identity": "tls://nats.internal.example:4222",
+  "stream": "JEV_RECORDS",
+  "subject": "jev.records",
+  "durable_name": "jev-trainer",
+  "schema_digest": "08d7a9923e57698d280027695bc49c2d91749f0f26aad5ca946e7503fd5f916a",
+  "pulled": 200,
+  "delivered": 200,
+  "acked": 200,
+  "duplicates_suppressed": 0,
+  "dlq": 0,
+  "quarantined": 0,
+  "rejected_by_client": 0,
+  "inflight": 0,
+  "credits": 4,
+  "wal_records": 0,
+  "wal_bytes": 0,
+  "consumer_lag": 7,
+  "loop_cycles": 16,
+  "ack_latency_ms": {
+    "count": 200,
+    "p50": 1311.244023,
+    "p95": 1448.58582,
+    "max": 1818.2934
+  },
+  "offset_checkpoint": 17,
+  "last_error_class": null,
+  "started_at_unix_ms": 1789956292334,
+  "updated_at_unix_ms": 1789956339729
+}

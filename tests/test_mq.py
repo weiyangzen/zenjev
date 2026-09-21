@@ -25,6 +25,7 @@ from jev.mq import (
     envelope_content_hash,
     idempotency_key,
     locate_bridge_binary,
+    render_bridge_config,
     sha256_hex,
     validate_envelope,
 )
@@ -224,6 +225,69 @@ def test_bridge_faults_and_duplicate_suppression(tmp_path, bridge_env):
     assert "schema_digest_mismatch" in (tmp_path / "quarantine.jsonl").read_text(encoding="utf-8")
 
 
+def test_mq_config_loop_fields_and_render(tmp_path):
+    config = base_config(tmp_path, loop=True, max_cycles=3)
+    contract = config.mq.as_contract()
+    assert contract["loop"] is True
+    assert contract["max_cycles"] == 3
+    rendered = render_bridge_config(config)
+    assert rendered["loop"] is True
+    assert rendered["max_cycles"] == 3
+    default = base_config(tmp_path)
+    assert default.mq.loop is False
+    assert default.mq.max_cycles == 0
+    assert render_bridge_config(default)["loop"] is False
+    with pytest.raises(ConfigError):
+        base_config(tmp_path, max_cycles=-1)
+
+
+def test_bridge_loop_mode_runs_for_duration(tmp_path, bridge_env):
+    from jev.mq import MqIngestor
+
+    config = base_config(tmp_path, loop=True)
+    write_records(
+        tmp_path,
+        [
+            make_envelope(config, "r1", "raw_document", document={"text": "one"}),
+            make_envelope(config, "r2", "raw_document", document={"text": "two"}),
+        ],
+    )
+    cycles: list[int | None] = []
+    ingestor = MqIngestor(config, document_handler=lambda envelope: cycles.append(envelope.get("loop_cycle")))
+    metrics = ingestor.run(manage_bridge=True, duration_s=3.0)
+    assert metrics["accepted"] >= 4
+    assert metrics["duplicates"] == 0
+    assert metrics["bridge"]["loop_cycles"] >= 1
+    assert None in cycles and 1 in cycles
+
+
+def test_bridge_loop_mode_dedup_suppresses_same_cycle_duplicate(tmp_path, bridge_env):
+    from jev.mq import MqIngestor
+
+    config = base_config(tmp_path, loop=True, max_cycles=2)
+    first = make_envelope(config, "r1", "raw_document", document={"text": "one"})
+    write_records(
+        tmp_path,
+        [
+            first,
+            make_envelope(config, "r2", "raw_document", document={"text": "two"}),
+            first,
+        ],
+    )
+    seen: list[tuple[str, int | None]] = []
+    ingestor = MqIngestor(
+        config,
+        document_handler=lambda envelope: seen.append((str(envelope["record_id"]), envelope.get("loop_cycle"))),
+    )
+    metrics = ingestor.run(manage_bridge=True, idle_timeout_s=2.0)
+    assert metrics["accepted"] == 4
+    assert metrics["duplicates"] == 0
+    assert seen == [("r1", None), ("r2", None), ("r1", 1), ("r2", 1)]
+    bridge_metrics = json.loads((tmp_path / "metrics.json").read_text(encoding="utf-8"))
+    assert bridge_metrics["duplicates_suppressed"] == 2
+    assert bridge_metrics["loop_cycles"] == 1
+
+
 def test_bridge_crash_before_ack_replays(tmp_path, bridge_env):
     from jev.mq import MqIngestor
 
@@ -244,3 +308,22 @@ def test_bridge_crash_before_ack_replays(tmp_path, bridge_env):
     metrics = ingestor2.run(manage_bridge=True, max_records=1, idle_timeout_s=10.0)
     assert metrics["accepted"] == 1
     assert (tmp_path / "replay.jsonl").read_text(encoding="utf-8").count("\n") == 1
+
+
+def test_training_example_from_envelope_shapes(tmp_path):
+    from jev.mq import training_example_from_envelope
+
+    assert training_example_from_envelope({"example": {"input": "a", "output": {"entities": {}}}}) == {
+        "input": "a",
+        "output": {"entities": {}},
+    }
+    assert training_example_from_envelope({"text": "b", "labels": {"entities": {"x": ["y"]}}}) == {
+        "input": "b",
+        "output": {"entities": {"x": ["y"]}},
+    }
+    assert training_example_from_envelope({"document": {"text": "c"}, "labels": {"entities": {}}}) == {
+        "input": "c",
+        "output": {"entities": {}},
+    }
+    assert training_example_from_envelope({"labels": {"entities": {}}}) is None
+    assert training_example_from_envelope({"example": {"output": {}}}) is None

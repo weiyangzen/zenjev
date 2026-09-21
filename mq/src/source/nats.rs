@@ -243,6 +243,7 @@ async fn worker(
                     Ok(info) => SourceStatus {
                         lag: info.num_pending as i64,
                         checkpoint: info.delivered.stream_sequence.into(),
+                        loop_cycles: 0,
                     },
                     Err(_) => SourceStatus::default(),
                 };

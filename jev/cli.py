@@ -211,7 +211,7 @@ def _cmd_mq_bridge_config(args: argparse.Namespace) -> int:
 
 
 def _cmd_mq_run(args: argparse.Namespace) -> int:
-    from .mq import MqIngestor
+    from .mq import MqIngestor, training_example_from_envelope
 
     config = _mq_config(args)
     stream = None
@@ -227,11 +227,20 @@ def _cmd_mq_run(args: argparse.Namespace) -> int:
     def labelled_handler(envelope: dict) -> None:
         if stream is None:
             return
-        example = envelope.get("labels") or envelope.get("example")
-        if isinstance(example, dict):
+        example = training_example_from_envelope(envelope)
+        if example is not None:
             stream.submit(example)
 
-    ingestor = MqIngestor(config, labelled_handler=labelled_handler if args.train else None)
+    overrides: dict = {}
+    if args.loop:
+        overrides["loop"] = True
+    if args.max_cycles is not None:
+        overrides["max_cycles"] = args.max_cycles
+    ingestor = MqIngestor(
+        config,
+        labelled_handler=labelled_handler if args.train else None,
+        bridge_config_overrides=overrides or None,
+    )
     if args.pause_seconds:
         ingestor.pause()
 
@@ -247,6 +256,7 @@ def _cmd_mq_run(args: argparse.Namespace) -> int:
         manage_bridge=not args.attach,
         max_records=args.max_records,
         idle_timeout_s=args.idle_timeout,
+        duration_s=args.duration,
     )
     if stream is not None:
         metrics["training_events"] = len(stream.stop(timeout=120))
@@ -405,6 +415,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--train", action="store_true")
     p.add_argument("--attach", action="store_true", help="use an already running bridge")
     p.add_argument("--pause-seconds", type=float, default=0.0)
+    p.add_argument("--loop", action="store_true", help="force infinite loop mode on for this run")
+    p.add_argument("--duration", type=float, default=None, help="stop after this many wall seconds and drain")
+    p.add_argument("--max-cycles", type=int, default=None, help="stop the loop after this many cycles")
     p.set_defaults(func=_cmd_mq_run)
 
     p = mq_sub.add_parser("lag")

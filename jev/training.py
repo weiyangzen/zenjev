@@ -246,6 +246,21 @@ class ContinuousLoRATrainer:
         self.runtime.ema.initialize(self._state())
         self._warmup_remaining = self.config.runtime.reset_warmup_steps
         self._warmup_pending = self._warmup_remaining > 0
+        from .status import write_status
+        write_status(
+            {
+                "phase": "reset",
+                "generation": self.runtime.stats.model_generation,
+                "ema_step": self.runtime.ema.updates,
+                "training_steps": self.runtime.stats.training_steps,
+                "reset_id": self.runtime.stats.reset_id,
+                "loss": None,
+                "note": reason,
+                "model_id": self.config.model_id,
+                "device": self.config.runtime.device,
+                "config_digest": self.config.digest(),
+            }
+        )
         if not self._warmup_pending:
             self.runtime.publish(self.model, dict(self.runtime.ema.values), ema_step=0)
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -328,6 +343,22 @@ class ContinuousLoRATrainer:
                             ema_step=self.runtime.ema.updates,
                             checkpoint=str(checkpoint_path) if checkpoint_path else None,
                         )
+            from .status import write_status
+            write_status(
+                {
+                    "phase": "training",
+                    "generation": self.runtime.stats.model_generation,
+                    "ema_step": self.runtime.ema.updates,
+                    "training_steps": self.runtime.stats.training_steps,
+                    "reset_id": self.runtime.stats.reset_id,
+                    "loss": value,
+                    "learning_rate": self.config.runtime.learning_rate,
+                    "checkpoint": str(checkpoint_path) if checkpoint_path else None,
+                    "model_id": self.config.model_id,
+                    "device": self.config.runtime.device,
+                    "config_digest": self.config.digest(),
+                }
+            )
             event = TrainEvent(
                 step,
                 value,
@@ -393,10 +424,26 @@ class ContinuousLoRAStream:
         self._thread.start()
         return self
 
+    def _raise_if_failed(self) -> None:
+        if self._error is not None:
+            raise RuntimeError("Jev training stream failed") from self._error
+        if self._thread is not None and not self._thread.is_alive() and not self._stop_requested:
+            raise RuntimeError("Jev training stream stopped unexpectedly")
+
     def submit(self, example: dict[str, Any], *, timeout: float | None = None) -> None:
+        """Bounded submit that fails fast when the training writer has died."""
         if self._thread is None or self._stop_requested:
             raise RuntimeError("stream is not accepting examples")
-        self._queue.put(example, timeout=timeout)
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while True:
+            self._raise_if_failed()
+            try:
+                self._queue.put(example, timeout=0.25)
+                return
+            except queue.Full:
+                self._raise_if_failed()
+                if deadline is not None and time.monotonic() >= deadline:
+                    raise TimeoutError("timed out submitting to Jev training stream")
 
     def stop(self, *, wait: bool = True, timeout: float | None = None) -> list[TrainEvent]:
         if self._thread is None:

@@ -16,6 +16,8 @@ pub struct Delivery {
 pub struct SourceStatus {
     pub lag: i64,
     pub checkpoint: Option<u64>,
+    /// Highest mock loop cycle index delivered so far (0 when not looping).
+    pub loop_cycles: u64,
 }
 
 /// One pluggable broker protocol. The bridge exposes the same envelope/ack

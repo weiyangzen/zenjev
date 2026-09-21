@@ -1,0 +1,26 @@
+{
+  "monitor_schema_version": 1,
+  "samples": 62,
+  "fresh": 62,
+  "stale": 0,
+  "cpu_percent": {
+    "min": 4.379084967320262,
+    "avg": 5.3659394426556535,
+    "max": 11.633820724729816
+  },
+  "gpu_utilization_percent": {
+    "min": 0.0,
+    "avg": 4.838709677419355,
+    "max": 19.0
+  },
+  "gpu_memory_mib": {
+    "min": 15.0,
+    "max": 4165.0
+  },
+  "generation": {
+    "min": 3,
+    "max": 169,
+    "delta": 166
+  },
+  "note": "captured by monitor/target/release/zenjev-monitor during a 45s bounded infinite-MQ soak"
+}

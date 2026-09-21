@@ -11,6 +11,8 @@ are operating instructions and never change checklist state or acceptance.
 | [`training_serving.md`](training_serving.md) | Operate `train`, `serve`, `metrics`, `reset`, and `manifest`; understand the `runs/jev` checkpoint layout, EMA snapshot semantics, and the collapse reset procedure. |
 | [`mq_operations.md`](mq_operations.md) | The frozen §1.5 external-MQ contract (adapter selection, envelope, idempotency, ack ordering, credits, WAL, DLQ, quarantine, secret references) and the `python -m jev.cli mq ...` operator commands. |
 | [`recovery.md`](recovery.md) | Collapse detection thresholds, the reset transaction (archive, reset id, warm-up), and how to run the collapse recovery drill. |
+| [`monitoring.md`](monitoring.md) | `zenjev-monitor`: CPU/GPU/GPU-memory sampling, training-generation/EMA/loss status contract, JSONL evidence, degradation behavior. |
+| [`infinite_soak.md`](infinite_soak.md) | Endless head-to-tail MQ replay (`loop: true`) and the bounded/unbounded train-infer-update soak with monitoring evidence. |
 | [`acceptance.md`](acceptance.md) | The exact Stage 0 validation profile commands and the evidence file each one produces. |
 
 Common conventions:

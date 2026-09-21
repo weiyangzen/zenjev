@@ -333,3 +333,68 @@ it later:
    exists.
 6. Repeat the MQ smoke after the remote transfer to `sansha@192.168.50.38`
    (G7/G11) and store the receipt.
+
+## 10. Infinite loop testing mode
+
+The `mock` adapter can replay its `source_path` fixture head-to-tail forever so a
+train/infer/update soak can run without provisioning new data. Two additive
+`mq` fields control it:
+
+| Field | Default | Meaning |
+|---|---|---|
+| `loop` | `false` | Wrap to record 0 after the last record and replay the fixture |
+| `max_cycles` | `0` | Stop after this many cycles; `0` means unbounded |
+
+`loop` reuses the existing `batch`, `max_ack_pending`, `dedup_window` and
+`max_bytes` bounds; no new backpressure knobs are introduced. Python validates
+`max_cycles >= 0`, and both fields are part of `mq.as_contract()` and the
+rendered bridge JSON.
+
+Semantics:
+
+- Cycle 0 records are delivered byte-identical to the fixture. Every later
+  cycle injects `"loop_cycle": <n>` into the envelope, recomputes the canonical
+  `content_sha256` (remove the hash, sorted keys, compact separators, SHA-256)
+  and re-serializes the bytes, so each pass has a distinct idempotency key and
+  the bridge dedup ledger does not suppress the replay. A same-cycle duplicate
+  is still suppressed exactly as before.
+- Fail-closed validation is unchanged: every looped record is re-validated by
+  the bridge including the recomputed content hash, so malformed fixtures still
+  reach the DLQ and schema mismatches still reach quarantine.
+- `max_cycles > 0` stops the source after that many cycles, the sink drains,
+  and the client can finish cleanly. With `max_cycles: 0` the loop is unbounded;
+  bound the operator run with `--duration`/`--max-records`/`--idle-timeout`.
+- The mock state file records `committed`, `cycle` and `cursor`; a restart with
+  `loop: true` resumes near the wrap point (best effort) instead of replaying
+  from cycle 0, unless `start_position: first` forces a fresh replay.
+- Bridge metrics expose `loop_cycles` (highest cycle index delivered), and every
+  delivered record frame carries `loop_cycle` (`0` for the first pass).
+
+Operator examples:
+
+```bash
+# force loop mode on for one run, bounded to 3 cycles, and persist metrics
+python -m jev.cli mq run --config /tmp/jev-mq.yaml \
+  --loop --max-cycles 3 --output artifacts/mq/loop-run.json
+
+# unbounded soak for 60 seconds (drains gracefully when the timer expires)
+python -m jev.cli mq run --config /tmp/jev-mq.yaml --loop --duration 60 \
+  --output artifacts/mq/loop-soak.json
+```
+
+`--loop` overrides `mq.loop` for that run only (the bridge config is rendered
+with the override) and `--max-cycles` overrides `mq.max_cycles`. `jev mq
+validate`, `jev mq bridge-config` and `jev mq replay` include the new fields in
+their rendered output.
+
+Bounded no-broker evidence:
+
+```bash
+python3 scripts/smoke_mq_loop.py
+```
+
+It builds `mq/` when needed, replays a two-record fixture for `max_cycles: 3`
+(6 accepted records), asserts distinct per-cycle hashes, zero duplicate
+suppression and a clean stop, then writes `artifacts/mq/loop_smoke.json` and
+exits `2` on failure. This is simulated loop mode against the `mock` adapter;
+no live broker is contacted.

@@ -47,6 +47,13 @@ pub struct BridgeConfig {
     pub socket_path: PathBuf,
     #[serde(default = "default_dedup_window")]
     pub dedup_window: usize,
+    /// Mock-only infinite testing mode: after the last record, wrap to record 0
+    /// and replay the same dataset with a distinct `loop_cycle` per pass.
+    #[serde(default, rename = "loop")]
+    pub loop_enabled: bool,
+    /// Stop the mock loop after this many cycles; `0` means unbounded.
+    #[serde(default)]
+    pub max_cycles: u64,
     #[serde(default)]
     pub tls_required: bool,
     #[serde(default)]

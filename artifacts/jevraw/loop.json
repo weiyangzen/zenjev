@@ -1,0 +1,210 @@
+{
+  "pass": true,
+  "raw_root": "/home/sansha/data/jevraw",
+  "fraction": 0.005,
+  "sampled_files": 488,
+  "per_file": 2,
+  "max_records": 976,
+  "selected_records": 818,
+  "selection_seconds": 4.815789370099083,
+  "rounds": 3,
+  "steps_per_round": 8,
+  "total_training_examples": 4908,
+  "config_digest": "71c9927537ec3df04273b118de14a7b15335421217e519e24bb00d32858806ac",
+  "schema_digest": "27e764552cfbac9ad15d1e3d6fbff27c0e206f339f39e3b31c899f7badd4c3ca",
+  "model_id": "fastino/gliner2-base-v1",
+  "model_revision": "79c3a777abc572b4767922f3916cf63fb5754df2",
+  "ema_updates": 24,
+  "model_generation": 25,
+  "final_checkpoint": "runs/jev/jevraw/latest.pt",
+  "base_load_seconds": 3.2890729422215372,
+  "total_seconds": 133.7164236640092,
+  "peak_vram_bytes": 5933246976,
+  "serving_p50_seconds": 0.12870295299217105,
+  "rounds_evidence": [
+    {
+      "round": 1,
+      "judging_model": "live_lora",
+      "served_generation_entering_round": 1,
+      "served_ema_step_entering_round": 0,
+      "judged_texts": 1636,
+      "judging_seconds": 36.4829300630372,
+      "task_type": {
+        "count": 1636,
+        "mean_top_probability": 0.7100393387944305,
+        "mean_entropy": 0.7493824304692107
+      },
+      "decision_choice": {
+        "count": 1636,
+        "mean_top_probability": 0.37662873476854647,
+        "mean_entropy": 1.645446515309961
+      },
+      "synthesized": 1636,
+      "training_steps": 8,
+      "losses": [
+        6.6812920570373535,
+        1.8847246170043945,
+        12.723093032836914,
+        7.4262495040893555,
+        11.589990615844727,
+        5.402596473693848,
+        0.019376229494810104,
+        1.5659537315368652
+      ],
+      "training_seconds": 3.536564234877005,
+      "ema_updates": 8,
+      "model_generation": 9,
+      "serving_observations": [
+        {
+          "seconds": 0.21298544388264418,
+          "generation": 1,
+          "ema_step": 0,
+          "task_type": "other"
+        },
+        {
+          "seconds": 0.11457610107026994,
+          "generation": 1,
+          "ema_step": 0,
+          "task_type": "planning"
+        },
+        {
+          "seconds": 0.28060479112900794,
+          "generation": 1,
+          "ema_step": 0,
+          "task_type": "translation"
+        },
+        {
+          "seconds": 0.13532413891516626,
+          "generation": 2,
+          "ema_step": 1,
+          "task_type": "data_analysis"
+        }
+      ],
+      "serving_errors": [],
+      "checkpoint": "runs/jev/jevraw/adapter-step-00000008.pt"
+    },
+    {
+      "round": 2,
+      "judging_model": "live_lora",
+      "served_generation_entering_round": 9,
+      "served_ema_step_entering_round": 8,
+      "judged_texts": 1636,
+      "judging_seconds": 35.558815540978685,
+      "task_type": {
+        "count": 1636,
+        "mean_top_probability": 0.7579729325690102,
+        "mean_entropy": 0.6721595834898461
+      },
+      "decision_choice": {
+        "count": 1636,
+        "mean_top_probability": 0.3485393484808969,
+        "mean_entropy": 1.616160773706096
+      },
+      "synthesized": 1636,
+      "training_steps": 8,
+      "losses": [
+        3.9447133541107178,
+        3.0493133068084717,
+        6.04464054107666,
+        2.751835823059082,
+        0.5486550331115723,
+        5.058115005493164,
+        0.8688039183616638,
+        2.1477091312408447
+      ],
+      "training_seconds": 3.361276548122987,
+      "ema_updates": 16,
+      "model_generation": 17,
+      "serving_observations": [
+        {
+          "seconds": 0.08653345913626254,
+          "generation": 9,
+          "ema_step": 8,
+          "task_type": "other"
+        },
+        {
+          "seconds": 0.08130445913411677,
+          "generation": 9,
+          "ema_step": 8,
+          "task_type": "planning"
+        },
+        {
+          "seconds": 0.250992831075564,
+          "generation": 9,
+          "ema_step": 8,
+          "task_type": "translation"
+        },
+        {
+          "seconds": 0.12776891607791185,
+          "generation": 10,
+          "ema_step": 9,
+          "task_type": "data_analysis"
+        }
+      ],
+      "serving_errors": [],
+      "checkpoint": "runs/jev/jevraw/adapter-step-00000016.pt"
+    },
+    {
+      "round": 3,
+      "judging_model": "live_lora",
+      "served_generation_entering_round": 17,
+      "served_ema_step_entering_round": 16,
+      "judged_texts": 1636,
+      "judging_seconds": 35.6319366612006,
+      "task_type": {
+        "count": 1636,
+        "mean_top_probability": 0.805653798506055,
+        "mean_entropy": 0.5576552147504519
+      },
+      "decision_choice": {
+        "count": 1636,
+        "mean_top_probability": 0.3518791677955801,
+        "mean_entropy": 1.556506609708135
+      },
+      "synthesized": 1636,
+      "training_steps": 8,
+      "losses": [
+        1.1178699731826782,
+        7.880962371826172,
+        7.146059036254883,
+        1.1962651014328003,
+        4.177434921264648,
+        2.8269591331481934,
+        5.065241813659668,
+        4.347630500793457
+      ],
+      "training_seconds": 3.3656229770276695,
+      "ema_updates": 24,
+      "model_generation": 25,
+      "serving_observations": [
+        {
+          "seconds": 0.08492803387343884,
+          "generation": 17,
+          "ema_step": 16,
+          "task_type": "other"
+        },
+        {
+          "seconds": 0.07951677916571498,
+          "generation": 17,
+          "ema_step": 16,
+          "task_type": "planning"
+        },
+        {
+          "seconds": 0.25763186486437917,
+          "generation": 17,
+          "ema_step": 16,
+          "task_type": "translation"
+        },
+        {
+          "seconds": 0.12870295299217105,
+          "generation": 18,
+          "ema_step": 17,
+          "task_type": "data_analysis"
+        }
+      ],
+      "serving_errors": [],
+      "checkpoint": "runs/jev/jevraw/adapter-step-00000024.pt"
+    }
+  ],
+  "privacy": "aggregate evidence only; raw prompts/responses and synthesized distributions stay under runs/"
+}

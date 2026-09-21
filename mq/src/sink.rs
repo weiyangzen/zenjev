@@ -329,6 +329,7 @@ impl Sink {
                         "status" => {
                             let status = self.source.status();
                             self.metrics.consumer_lag = status.lag;
+                            self.metrics.loop_cycles = status.loop_cycles;
                             self.metrics.offset_checkpoint = status.checkpoint;
                             let _ = send_frame(
                                 &mut stream,
@@ -385,6 +386,7 @@ impl Sink {
         self.metrics.updated_at_unix_ms = unix_ms();
         let status = self.source.status();
         self.metrics.consumer_lag = status.lag;
+        self.metrics.loop_cycles = status.loop_cycles;
         if status.checkpoint.is_some() {
             self.metrics.offset_checkpoint = status.checkpoint;
         }
@@ -419,6 +421,7 @@ fn send_record(
             "schema_version": parsed.schema.version,
             "source_uri": parsed.source.uri,
             "source_license": parsed.source.license,
+            "loop_cycle": parsed.value.get("loop_cycle").and_then(Value::as_u64).unwrap_or(0),
             "envelope": parsed.value,
         }),
     )

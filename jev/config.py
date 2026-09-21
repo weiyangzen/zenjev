@@ -314,6 +314,10 @@ class MqConfig:
     metrics_path: str = "artifacts/mq/metrics.json"
     replay_buffer: str = "runs/jev/mq/replay-buffer.jsonl"
     dedup_window: int = 10_000
+    # Infinite testing mode (mock adapter): replay the same dataset head-to-tail
+    # with a distinct loop_cycle per pass; max_cycles=0 means unbounded.
+    loop: bool = False
+    max_cycles: int = 0
     tls_required: bool = True
     ca_cert: str | None = None
     client_cert: str | None = None
@@ -349,6 +353,8 @@ class MqConfig:
         }
         if any(number <= 0 for number in positive.values()):
             raise ConfigError("mq batch/max_bytes/ack_wait/max_ack_pending/prefetch/max_deliver/dedup_window must be positive")
+        if out.max_cycles < 0:
+            raise ConfigError("mq.max_cycles must be nonnegative")
         if out.secret_ref is not None and not (out.secret_ref.startswith("env:") or out.secret_ref.startswith("file:")):
             raise ConfigError("mq.secret_ref must be an env:/file: reference, never a secret value")
         if out.client_cert and not out.client_key or out.client_key and not out.client_cert:
@@ -394,6 +400,8 @@ class MqConfig:
             "tls_required": self.tls_required,
             "secret_ref": self.secret_ref,
             "dedup_window": self.dedup_window,
+            "loop": self.loop,
+            "max_cycles": self.max_cycles,
         }
 
 

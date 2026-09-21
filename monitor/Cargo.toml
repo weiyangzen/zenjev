@@ -1,0 +1,22 @@
+[package]
+name = "zenjev-monitor"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.98"
+description = "Small robust observability monitor for the ZenJev train/infer service"
+license = "Apache-2.0"
+
+[lib]
+name = "zenjev_monitor"
+path = "src/lib.rs"
+
+[[bin]]
+name = "zenjev-monitor"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+
+[profile.release]
+strip = true

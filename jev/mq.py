@@ -162,6 +162,28 @@ def idempotency_key(envelope: dict[str, Any]) -> str:
     return f"{envelope.get('record_id')}|{envelope.get('content_sha256')}"
 
 
+def training_example_from_envelope(envelope: dict[str, Any]) -> dict[str, Any] | None:
+    """Normalize a ``labelled_example`` envelope to a GLiNER2 training record.
+
+    Accepted shapes: ``example`` already holding ``{input, output}``, or
+    ``labels`` (output only) paired with ``text``/``document.text``. Anything
+    else returns None so the caller can quarantine instead of training garbage.
+    """
+    candidate = envelope.get("example")
+    if isinstance(candidate, dict):
+        text = candidate.get("input", candidate.get("text"))
+        if isinstance(text, str) and text and isinstance(candidate.get("output"), dict):
+            return {"input": text, "output": candidate["output"]}
+    labels = envelope.get("labels")
+    text = envelope.get("text")
+    if not isinstance(text, str) or not text:
+        document = envelope.get("document")
+        text = document.get("text") if isinstance(document, dict) else None
+    if isinstance(text, str) and text and isinstance(labels, dict):
+        return {"input": text, "output": labels}
+    return None
+
+
 def _frame(payload: dict[str, Any]) -> bytes:
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     return struct.pack(">I", len(body)) + body
@@ -391,6 +413,8 @@ def render_bridge_config(config: JevConfig, *, overrides: dict[str, Any] | None 
         "wal_path": mq.wal_path,
         "socket_path": mq.socket_path,
         "dedup_window": mq.dedup_window,
+        "loop": bool(mq.loop),
+        "max_cycles": int(mq.max_cycles),
         "tls_required": mq.tls_required,
         "ca_cert": mq.ca_cert,
         "client_cert": mq.client_cert,
@@ -541,24 +565,66 @@ class MqIngestor:
         if handler is not None:
             handler(envelope)
 
+    def _accept_record(self, message: dict[str, Any], client: BridgeClient) -> None:
+        """Validate, durably accept, then ack one delivered record frame."""
+        self.metrics.received += 1
+        received_at = time.perf_counter()
+        delivery_id = str(message.get("delivery_id"))
+        envelope = message.get("envelope")
+        if not isinstance(envelope, dict):
+            client.credit(acks=[delivery_id], quarantine=[{"delivery_id": delivery_id, "reason": "client_invalid_envelope"}])
+            self.metrics.quarantined += 1
+            return
+        key = idempotency_key(envelope)
+        if self.replay.contains(key):
+            self.metrics.duplicates += 1
+            client.credit(acks=[delivery_id], count=1)
+            return
+        self.replay.accept(envelope)
+        self.metrics.accepted += 1
+        self._handle(envelope)
+        client.credit(acks=[delivery_id], count=1)
+        self.metrics.ack_latency_ms.append(round((time.perf_counter() - received_at) * 1000.0, 3))
+
+    def _settle_inflight(self, client: BridgeClient, *, quiet_s: float = 0.5) -> None:
+        """Pause new pulls, then accept already-sent frames so drain completes."""
+        try:
+            client.pause()
+        except OSError:
+            return
+        deadline = time.monotonic() + quiet_s
+        while time.monotonic() < deadline:
+            message = client.receive(timeout_s=0.1)
+            if message is None:
+                continue
+            if message.get("type") == "record":
+                self._accept_record(message, client)
+                deadline = time.monotonic() + quiet_s
+
     def run(
         self,
         *,
         manage_bridge: bool = True,
         max_records: int | None = None,
         idle_timeout_s: float | None = None,
+        duration_s: float | None = None,
     ) -> dict[str, Any]:
         if manage_bridge:
             self.start_bridge()
         credits = min(self.mq.prefetch, self.mq.max_ack_pending)
         client = BridgeClient(self.mq.socket_path)
         idle_started = time.monotonic()
+        started = time.monotonic()
+        duration_reached = False
         try:
             client.connect(credits=credits)
             while not self._stop.is_set():
                 if self._paused.is_set():
                     time.sleep(self.poll_seconds)
                     continue
+                if duration_s is not None and time.monotonic() - started >= duration_s:
+                    duration_reached = True
+                    break
                 message = client.receive(timeout_s=self.poll_seconds)
                 if message is None:
                     if idle_timeout_s is not None and time.monotonic() - idle_started >= idle_timeout_s:
@@ -567,26 +633,11 @@ class MqIngestor:
                 if message.get("type") != "record":
                     continue
                 idle_started = time.monotonic()
-                self.metrics.received += 1
-                received_at = time.perf_counter()
-                delivery_id = str(message.get("delivery_id"))
-                envelope = message.get("envelope")
-                if not isinstance(envelope, dict):
-                    client.credit(acks=[delivery_id], quarantine=[{"delivery_id": delivery_id, "reason": "client_invalid_envelope"}])
-                    self.metrics.quarantined += 1
-                    continue
-                key = idempotency_key(envelope)
-                if self.replay.contains(key):
-                    self.metrics.duplicates += 1
-                    client.credit(acks=[delivery_id], count=1)
-                    continue
-                self.replay.accept(envelope)
-                self.metrics.accepted += 1
-                self._handle(envelope)
-                client.credit(acks=[delivery_id], count=1)
-                self.metrics.ack_latency_ms.append(round((time.perf_counter() - received_at) * 1000.0, 3))
+                self._accept_record(message, client)
                 if max_records is not None and self.metrics.accepted >= max_records:
                     break
+            if duration_reached:
+                self._settle_inflight(client)
             self.metrics.bridge = client.status()
             client.drain()
             deadline = time.monotonic() + 30.0

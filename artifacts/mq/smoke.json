@@ -13,9 +13,9 @@
     "bridge": {
       "ack_latency_ms": {
         "count": 3,
-        "max": 10.312137,
-        "p50": 7.0521769999999995,
-        "p95": 7.0521769999999995
+        "max": 3.1368329999999998,
+        "p50": 2.3559509999999997,
+        "p95": 2.3559509999999997
       },
       "acked": 3,
       "adapter": "mock",
@@ -29,22 +29,23 @@
       "endpoint_identity": "local",
       "inflight": 0,
       "last_error_class": "dlq:envelope_not_json",
+      "loop_cycles": 0,
       "offset_checkpoint": 6,
       "pulled": 6,
       "quarantined": 1,
       "rejected_by_client": 0,
       "schema_digest": "08d7a9923e57698d280027695bc49c2d91749f0f26aad5ca946e7503fd5f916a",
-      "started_at_unix_ms": 1789938851404,
+      "started_at_unix_ms": 1789956451255,
       "stream": "JEV_RECORDS",
       "subject": "jev.records",
-      "updated_at_unix_ms": 1789938851492,
+      "updated_at_unix_ms": 1789956451323,
       "wal_bytes": 0,
       "wal_records": 0
     },
     "ack_latency_ms": [
-      6.695,
-      3.42,
-      3.271
+      1.996,
+      1.176,
+      1.167
     ]
   },
   "bridge": {

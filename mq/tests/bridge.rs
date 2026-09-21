@@ -48,6 +48,16 @@ struct Harness {
 
 impl Harness {
     fn start(name: &str, records: &[Vec<u8>], exit_after_drain: bool) -> Self {
+        Self::start_with(name, records, exit_after_drain, false, 0)
+    }
+
+    fn start_with(
+        name: &str,
+        records: &[Vec<u8>],
+        exit_after_drain: bool,
+        loop_enabled: bool,
+        max_cycles: u64,
+    ) -> Self {
         let directory = std::env::temp_dir().join(format!(
             "jev-mq-it-{name}-{}-{}",
             std::process::id(),
@@ -81,6 +91,8 @@ impl Harness {
             "batch": 8,
             "max_ack_pending": 8,
             "max_deliver": 3,
+            "loop": loop_enabled,
+            "max_cycles": max_cycles,
             "exit_after_drain": exit_after_drain
         });
         std::fs::write(&config, serde_json::to_string_pretty(&value).unwrap()).unwrap();
@@ -303,6 +315,154 @@ fn poison_dlq_schema_quarantine_and_duplicate_suppression() {
     let metrics = std::fs::read_to_string(metrics_path).unwrap();
     assert!(metrics.contains("duplicates_suppressed"));
     assert!(metrics.contains("\"dlq\": 1") || metrics.contains("\"dlq\": 2"));
+}
+
+fn read_metrics_until(harness: &Harness, predicate: impl Fn(&Value) -> bool) -> Value {
+    let path = harness.directory.join("metrics.json");
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while Instant::now() < deadline {
+        if let Ok(raw) = std::fs::read_to_string(&path) {
+            if let Ok(value) = serde_json::from_str::<Value>(&raw) {
+                if predicate(&value) {
+                    return value;
+                }
+            }
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    panic!("bridge metrics predicate was never satisfied");
+}
+
+fn loop_cycle_of(frame: &Value) -> Option<u64> {
+    frame["envelope"].get("loop_cycle").and_then(Value::as_u64)
+}
+
+fn content_hash(frame: &Value) -> String {
+    frame["envelope"]["content_sha256"]
+        .as_str()
+        .expect("content_sha256")
+        .to_string()
+}
+
+#[test]
+fn loop_mode_replays_cycles_with_distinct_keys_and_stops_at_max_cycles() {
+    let harness = Harness::start_with(
+        "loop",
+        &[
+            serde_json::to_vec(&envelope("r1")).unwrap(),
+            serde_json::to_vec(&envelope("r2")).unwrap(),
+        ],
+        true,
+        true,
+        3,
+    );
+    let mut stream = harness.connect();
+    write_frame(
+        &mut stream,
+        &json!({"type": "hello", "protocol": 1, "credits": 16}),
+    );
+    read_until(&mut stream, "ready");
+
+    let mut frames = Vec::new();
+    for _ in 0..6 {
+        frames.push(read_until(&mut stream, "record"));
+    }
+    let mut probe = stream.try_clone().unwrap();
+    probe
+        .set_read_timeout(Some(Duration::from_millis(250)))
+        .unwrap();
+    assert!(
+        read_frame(&mut probe).is_none(),
+        "max_cycles must exhaust the source"
+    );
+
+    let record_ids: Vec<String> = frames.iter().map(text_record).collect();
+    assert_eq!(record_ids, vec!["r1", "r2", "r1", "r2", "r1", "r2"]);
+    let envelope_cycles: Vec<Option<u64>> = frames.iter().map(loop_cycle_of).collect();
+    assert_eq!(
+        envelope_cycles,
+        vec![None, None, Some(1), Some(1), Some(2), Some(2)],
+        "cycle 0 must stay unchanged and later cycles carry loop_cycle"
+    );
+    let frame_cycles: Vec<u64> = frames
+        .iter()
+        .map(|frame| frame["loop_cycle"].as_u64().expect("frame loop_cycle"))
+        .collect();
+    assert_eq!(frame_cycles, vec![0, 0, 1, 1, 2, 2]);
+    assert_ne!(content_hash(&frames[0]), content_hash(&frames[2]));
+    assert_ne!(content_hash(&frames[0]), content_hash(&frames[4]));
+    assert_ne!(content_hash(&frames[2]), content_hash(&frames[4]));
+    assert_ne!(content_hash(&frames[1]), content_hash(&frames[3]));
+
+    for frame in &frames {
+        write_frame(
+            &mut stream,
+            &json!({"type": "credit", "count": 1, "acks": [frame["delivery_id"]]}),
+        );
+    }
+    write_frame(&mut stream, &json!({"type": "drain"}));
+    read_until(&mut stream, "drained");
+    write_frame(&mut stream, &json!({"type": "goodbye"}));
+
+    let metrics = read_metrics_until(&harness, |value| {
+        value["delivered"].as_u64() == Some(6) && value["loop_cycles"].as_u64() == Some(2)
+    });
+    assert_eq!(
+        metrics["duplicates_suppressed"].as_u64(),
+        Some(0),
+        "distinct cycle keys must not be suppressed"
+    );
+    assert_eq!(metrics["pulled"].as_u64(), Some(6));
+}
+
+#[test]
+fn loop_mode_max_cycles_two_stops_after_four_deliveries() {
+    let harness = Harness::start_with(
+        "loopstop",
+        &[
+            serde_json::to_vec(&envelope("r1")).unwrap(),
+            serde_json::to_vec(&envelope("r2")).unwrap(),
+        ],
+        true,
+        true,
+        2,
+    );
+    let mut stream = harness.connect();
+    write_frame(
+        &mut stream,
+        &json!({"type": "hello", "protocol": 1, "credits": 16}),
+    );
+    read_until(&mut stream, "ready");
+
+    let mut frames = Vec::new();
+    for _ in 0..4 {
+        frames.push(read_until(&mut stream, "record"));
+    }
+    let mut probe = stream.try_clone().unwrap();
+    probe
+        .set_read_timeout(Some(Duration::from_millis(250)))
+        .unwrap();
+    assert!(
+        read_frame(&mut probe).is_none(),
+        "source must stop at max_cycles=2"
+    );
+    let envelope_cycles: Vec<Option<u64>> = frames.iter().map(loop_cycle_of).collect();
+    assert_eq!(envelope_cycles, vec![None, None, Some(1), Some(1)]);
+
+    for frame in &frames {
+        write_frame(
+            &mut stream,
+            &json!({"type": "credit", "count": 1, "acks": [frame["delivery_id"]]}),
+        );
+    }
+    write_frame(&mut stream, &json!({"type": "drain"}));
+    read_until(&mut stream, "drained");
+    write_frame(&mut stream, &json!({"type": "goodbye"}));
+
+    let metrics = read_metrics_until(&harness, |value| {
+        value["delivered"].as_u64() == Some(4) && value["loop_cycles"].as_u64() == Some(1)
+    });
+    assert_eq!(metrics["pulled"].as_u64(), Some(4));
 }
 
 #[test]

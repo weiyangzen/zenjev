@@ -78,6 +78,20 @@ class JevRuntime:
                                       self.ema.updates if ema_step is None else ema_step,
                                       self.stats.reset_id, checkpoint)
             self.stats.model_generation = generation
+        from .status import write_status
+        write_status(
+            {
+                "phase": "serving",
+                "generation": generation,
+                "ema_step": self.ema.updates if ema_step is None else ema_step,
+                "training_steps": self.stats.training_steps,
+                "reset_id": self.stats.reset_id,
+                "checkpoint": checkpoint,
+                "model_id": self.config.model_id,
+                "device": self.config.runtime.device,
+                "config_digest": self.config.digest(),
+            }
+        )
 
     @contextmanager
     def training_transaction(self):
@@ -106,6 +120,15 @@ class JevRuntime:
 
     def infer(self, text: str) -> Any:
         return self.infer_result(text)["output"]
+
+    def snapshot_model(self) -> Any | None:
+        """Return the currently served immutable model (or None before publish).
+
+        The snapshot is the same object inference uses, so callers can run
+        additional schema-conditioned analysis against exactly what is served.
+        """
+        with self._lock:
+            return None if self._snapshot is None else self._snapshot.model
 
     def observe_training(self, loss: float, lora_state: dict[str, Any] | None = None) -> DriftState:
         return self.observe_metrics(loss, lora_state=lora_state)

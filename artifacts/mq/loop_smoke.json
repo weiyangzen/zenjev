@@ -1,0 +1,24 @@
+{
+  "pass": true,
+  "mode": "simulated_loop",
+  "max_cycles": 3,
+  "records_expected": 6,
+  "records_accepted": 6,
+  "loop_cycles": 2,
+  "duplicates": 0,
+  "duplicates_suppressed": 0,
+  "dlq_entries": 0,
+  "quarantine_entries": 0,
+  "cycle_sequence": [
+    null,
+    null,
+    1,
+    1,
+    2,
+    2
+  ],
+  "distinct_content_hashes": 6,
+  "bridge_binary": "/home/sansha/Github/zenjev/mq/target/debug/jev-mq-bridge",
+  "live_broker": false,
+  "note": "simulated loop mode on the deterministic mock adapter; no live broker was contacted"
+}
