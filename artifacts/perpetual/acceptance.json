@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-09-21T10:13:33Z",
+  "recorded_at": "2026-09-21T11:29:01Z",
   "services": {
     "loop": "running",
     "feeder": "running",
@@ -7,75 +7,87 @@
     "console": "running"
   },
   "uptime_seconds": {
-    "loop": 8.3,
-    "feeder": 629.7,
-    "fabricator": 628.8,
-    "console": 626.1
+    "loop": 648.6,
+    "feeder": 1152.9,
+    "fabricator": 594.4,
+    "console": 645.4
   },
   "lora": {
-    "generation": 1838,
-    "training_steps": 10430,
-    "ema_step": 2808,
-    "reset_id": 2,
-    "last_loss": 2.495613898645388e-06
+    "generation": 5083,
+    "training_steps": 26596,
+    "ema_step": 560,
+    "reset_id": 6,
+    "last_loss": 0.005592454224824905,
+    "loss_ema": 11.144563,
+    "loss_mean_50": 23.63908
   },
   "generation_ledger": {
-    "entries": 2103,
-    "max_generation_id": 1839,
+    "entries": 5347,
+    "max_generation_id": 5083,
     "monotonic_in_current_session": true,
     "historical_duplicate_ids_before_seeding_fix": 264,
-    "latest_session_pid": 26640
+    "latest_session_pid": 45228
   },
   "counters": {
-    "decision_reject": 33,
-    "decision_review": 5,
-    "real_pairs": 5428,
-    "synthetic_pairs": 7,
-    "training_examples": 5424
+    "decision_review": 1351,
+    "pairs_built": 1227,
+    "pairs_trained": 1224,
+    "real_pairs": 43439,
+    "synthetic_pairs": 124,
+    "training_examples": 22328
+  },
+  "distillation_pairs": {
+    "built": 1227,
+    "trained": 1224,
+    "instruction_sha16": "7c7fe8727ee4a943"
+  },
+  "queue_cursor": {
+    "committed_bytes": 185974335,
+    "backlog_bytes": 60525675
   },
   "latency_ms": {
-    "p50": 29.119,
-    "p95": 76.336
+    "p50": 27.061,
+    "p95": 111.387
   },
-  "records_per_minute": 569.0,
+  "records_per_minute": 0.0,
   "mq": {
-    "accepted": 39,
-    "acked": 39,
-    "consumer_lag": 190133892,
-    "delivered": 39,
+    "accepted": 1351,
+    "acked": 1351,
+    "consumer_lag": 0,
+    "delivered": 1351,
     "dlq": 0,
-    "duplicates_suppressed": 1,
-    "inflight": 1,
+    "duplicates_suppressed": 0,
+    "inflight": 0,
     "last_error_class": null,
-    "offset_checkpoint": 91542770,
+    "offset_checkpoint": 185974335,
     "quarantined": 0,
-    "received": 40
+    "received": 1351
   },
   "vram": {
-    "allocated_mb": 1848.6,
-    "reserved_mb": 3078.0
+    "allocated_mb": 1655.6,
+    "reserved_mb": 19452.0
   },
   "feeder_totals": {
-    "bytes_read": 639600892,
-    "envelopes_written": 3949
+    "bytes_read": 4345689368,
+    "envelopes_written": 2219
   },
-  "fabricator_emitted": 210,
+  "fabricator_emitted": 199,
   "console": {
     "http_status": 200,
-    "page_bytes": 22875,
-    "event_seq": 59,
-    "generations_visible": 2103
+    "page_bytes": 28527,
+    "event_seq": 1414,
+    "generations_visible": 5347
   },
   "live_inference_probe": {
-    "generation": 1839,
-    "ema_step": 2813,
+    "generation": 1,
+    "ema_step": 332,
     "has_output": true,
     "schema_digest": "27e764552cfbac9a"
   },
   "systemd": [
     "NRestarts=0\nId=zenjev-feeder.service\nActiveState=active",
-    "NRestarts=2\nId=zenjev-loop.service\nActiveState=active",
-    "NRestarts=0\nId=zenjev-fabricator.service\nActiveState=active",
+    "NRestarts=0\nId=zenjev-loop.service\nActiveState=active",
+    "NRestarts=507\nId=zenjev-fabricator.service\nActiveState=activating",
     "NRestarts=0\nId=zenjev-console.service\nActiveState=active"
   ],
   "restart_injection": {

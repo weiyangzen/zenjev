@@ -63,6 +63,8 @@ def main() -> int:
             "ema_step": loop.get("ema_step"),
             "reset_id": loop.get("reset_id"),
             "last_loss": loop.get("loss"),
+            "loss_ema": loop.get("loss_ema"),
+            "loss_mean_50": loop.get("loss_mean_50"),
         },
         "generation_ledger": {
             "entries": len(ids),
@@ -72,6 +74,15 @@ def main() -> int:
             "latest_session_pid": ledger[-1].get("session_pid") if ledger else None,
         },
         "counters": loop.get("counters"),
+        "distillation_pairs": {
+            "built": loop.get("pairs_built"),
+            "trained": (loop.get("counters") or {}).get("pairs_trained"),
+            "instruction_sha16": loop.get("instruction_sha16"),
+        },
+        "queue_cursor": {
+            "committed_bytes": loop.get("queue_cursor_bytes"),
+            "backlog_bytes": loop.get("queue_backlog_bytes"),
+        },
         "latency_ms": {"p50": loop.get("latency_p50_ms"), "p95": loop.get("latency_p95_ms")},
         "records_per_minute": loop.get("records_per_minute"),
         "mq": loop.get("bridge"),

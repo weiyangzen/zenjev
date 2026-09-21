@@ -4,9 +4,9 @@ Generated read-only projection. The sole authority is [stage0_zenjev_blueprint.m
 No implementation acceptance is implied by generating this file.
 
 **Source blueprint:** `Docs/stage0_zenjev_blueprint.md`
-**Source SHA-256:** `06bb4106915281cac610441d9302ad8a1eb604c1e517fb431703099b2639c411`
-**Specification SHA-256:** `508212551d37ebed0f45ee8b819c740f22ab10b6498a8f6a2cbe4dd59cb86d0f`
-**Generated at (UTC):** `2026-09-21T10:58:11Z`
+**Source SHA-256:** `b3da2a6c30359083e617b012134a9527fd5b9533097178119e355948f316eacd`
+**Specification SHA-256:** `7d570930847fc149df13738063837df3fe3b4fe20db1cec55bbe49327cc53508`
+**Generated at (UTC):** `2026-09-21T11:13:56Z`
 **Generation command:** `python3 scripts/validate_blueprint.py --generate`
 **Check command:** `python3 scripts/validate_blueprint.py --check`
 

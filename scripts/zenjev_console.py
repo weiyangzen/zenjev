@@ -122,6 +122,8 @@ def meta_block() -> dict[str, Any]:
         },
         "mq": mq,
         "train_batch": loop.get("train_batch"),
+        "loss_ema": loop.get("loss_ema"),
+        "loss_mean_50": loop.get("loss_mean_50"),
         "instruction_sha16": loop.get("instruction_sha16"),
         "pairs_built": loop.get("pairs_built"),
         "skipped_bad_capture": (loop.get("counters") or {}).get("skipped_bad_capture"),

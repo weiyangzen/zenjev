@@ -423,7 +423,9 @@ function applyMeta(body) {
   $("vram").textContent = vram.allocated_mb !== undefined ? `${vram.allocated_mb} MB` : "—";
   $("p50").textContent = fmt(loop.latency_p50_ms) + " ms";
   $("p95").textContent = fmt(loop.latency_p95_ms) + " ms";
-  $("loss").textContent = loop.loss === null || loop.loss === undefined ? "—" : Number(loop.loss).toFixed(4);
+  $("loss").textContent = loop.loss_ema === null || loop.loss_ema === undefined
+    ? (loop.loss === null || loop.loss === undefined ? "—" : Number(loop.loss).toFixed(4))
+    : `${Number(loop.loss_ema).toFixed(4)} (ema) · ${Number(loop.loss ?? loop.loss_ema).toFixed(3)} now`;
   $("resets").textContent = fmt(loop.reset_id);
   $("gaps").textContent = fmt(loop.seconds_since_last_record) + " s";
 
@@ -473,11 +475,13 @@ function applyMeta(body) {
 
   history.rate.push(loop.records_per_minute);
   history.lat.push(loop.latency_p95_ms);
-  history.loss.push(loop.loss);
+  history.loss.push(loop.loss_ema ?? loop.loss);
   Object.keys(history).forEach((key) => { if (history[key].length > 180) history[key].shift(); });
   $("rate-now").textContent = fmt(loop.records_per_minute) + " /min";
   $("lat-now").textContent = fmt(loop.latency_p95_ms) + " ms";
-  $("loss-now").textContent = loop.loss === null || loop.loss === undefined ? "—" : Number(loop.loss).toFixed(4);
+  $("loss-now").textContent = loop.loss_ema === null || loop.loss_ema === undefined
+    ? "—"
+    : `ema ${Number(loop.loss_ema).toFixed(4)} · mean50 ${Number(loop.loss_mean_50 ?? loop.loss_ema).toFixed(4)}`;
   drawLine($("chart-rate"), history.rate, "#4de3ff", true);
   drawLine($("chart-lat"), history.lat, "#a78bfa", true);
   drawLine($("chart-loss"), history.loss, "#4ade80", true);

@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import re
 import time
 from typing import Any
 
@@ -40,6 +41,7 @@ LINE_CAP = 8 * 1024 * 1024
 MAX_ENVELOPE_BYTES = 256 * 1024
 TEXT_CAP = 6000
 CHUNK = 1 << 20
+OMITTED_BODY = re.compile(r"\[omitted:[^\]]*\]|body_too_large|\[redacted[^\]]*\]", re.IGNORECASE)
 
 
 def _walk_text(value: Any, sink: list[str], cap: int) -> None:
@@ -207,6 +209,8 @@ def convert_line(
         return None, f"model_not_allowlisted:{model}"
     if len(request) < 16 or len(response) < 16:
         return None, "too_short"
+    if OMITTED_BODY.search(request) or OMITTED_BODY.search(response):
+        return None, "omitted_body"
     record_id = "jevraw-" + sha256_hex(f"{rel}#{offset}")[:32]
     envelope = build_envelope(
         record_id=record_id,

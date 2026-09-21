@@ -202,6 +202,8 @@ class Runtime:
         self.losses: collections.deque[float] = collections.deque(maxlen=200)
         self.last_record_at = time.time()
         self.last_loss: float | None = None
+        self.loss_ema: float | None = None
+        self.loss_window: collections.deque[float] = collections.deque(maxlen=200)
         self.started = time.time()
 
         self.runtime = JevRuntime(config)
@@ -267,7 +269,12 @@ class Runtime:
             else:
                 loss = base_step(model, example)
             try:
-                self.last_loss = float(loss.detach().item())
+                value = float(loss.detach().item())
+                self.last_loss = value
+                self.loss_window.append(value)
+                self.loss_ema = (
+                    value if self.loss_ema is None else 0.95 * self.loss_ema + 0.05 * value
+                )
             except Exception:
                 pass
             return loss
@@ -321,8 +328,11 @@ class Runtime:
         import torch
 
         started = time.perf_counter()
+        # Frame the extraction with the instruction so the served model sees the
+        # same task shape it is being trained on.
+        extraction_text = f"{INSTRUCTION}\n\n{request_text}"[:2000]
         try:
-            result = self.runtime.infer_result(request_text)
+            result = self.runtime.infer_result(extraction_text)
         except torch.cuda.OutOfMemoryError:
             torch.cuda.empty_cache()
             self.counters["inference_oom"] += 1
@@ -492,6 +502,7 @@ class Runtime:
                     "queue_cursor_bytes": self._spool_committed(),
                     "queue_backlog_bytes": self._spool_backlog(),
                     "loss": loss,
+                    "loss_ema": None if self.loss_ema is None else round(self.loss_ema, 6),
                     "created_at": utc_now(),
                 }
                 append_jsonl(LEDGER_PATH, record)
@@ -503,6 +514,7 @@ class Runtime:
                         "training_steps": record["training_steps"],
                         "reset_id": record["reset_id"],
                         "loss": loss,
+                    "loss_ema": None if self.loss_ema is None else round(self.loss_ema, 6),
                     }
                 )
                 parent = digest or sha256_hex(json.dumps(record, sort_keys=True))
@@ -576,6 +588,12 @@ class Runtime:
                     "ema_step": int(self.runtime.ema.updates),
                     "reset_id": int(self.runtime.stats.reset_id),
                     "loss": self.last_loss,
+                    "loss_ema": None if self.loss_ema is None else round(self.loss_ema, 6),
+                    "loss_mean_50": (
+                        round(sum(list(self.loss_window)[-50:]) / max(1, len(list(self.loss_window)[-50:])), 6)
+                        if self.loss_window
+                        else None
+                    ),
                     "latency_p50_ms": percentile(self.latencies, 0.5),
                     "latency_p95_ms": percentile(self.latencies, 0.95),
                     "vram": vram,
@@ -594,6 +612,12 @@ class Runtime:
                     "training_steps": int(self.runtime.stats.training_steps),
                     "reset_id": int(self.runtime.stats.reset_id),
                     "loss": self.last_loss,
+                    "loss_ema": None if self.loss_ema is None else round(self.loss_ema, 6),
+                    "loss_mean_50": (
+                        round(sum(list(self.loss_window)[-50:]) / max(1, len(list(self.loss_window)[-50:])), 6)
+                        if self.loss_window
+                        else None
+                    ),
                     "learning_rate": self.config.runtime.learning_rate,
                     "checkpoint": str(CHECKPOINT_DIR / "latest.pt"),
                     "config_digest": self.config.digest(),
