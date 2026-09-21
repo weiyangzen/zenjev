@@ -178,6 +178,10 @@ class Server:
                 started = time.perf_counter()
                 try:
                     result = server.runtime.infer_result(text)
+                    # Report the deployed generation, not this process's local
+                    # publish counter, so clients see the rollout identity.
+                    result = {**result, "generation": server.served_generation,
+                              "local_generation": result.get("generation")}
                     if self.path == "/analyze":
                         model_id = str(payload.get("model_id") or "gpt-5.6-sol")
                         output = result.get("output") if isinstance(result.get("output"), dict) else {}

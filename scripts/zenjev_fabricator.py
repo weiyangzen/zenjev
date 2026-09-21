@@ -148,7 +148,7 @@ def main() -> int:
                     "interval_seconds": args.interval,
                     "per_tick": max(1, args.per_tick),
                     "tick_seconds": round(time.time() - tick_started, 3),
-                    "spool": str(SPOOL_PATH.relative_to(REPO)),
+                    "spool": str(SPOOL_PATH),
                 },
             )
             if args.once or (args.count and emitted >= args.count):
