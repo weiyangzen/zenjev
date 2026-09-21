@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """ZenJev live console (§1.9).
 
-Read-only, offline dashboard: every value comes from durable state files
-(service heartbeats, the generation ledger, MQ metrics, the bounded event
-feed). The page auto-scrolls the live task feed and the SSE stream keeps
-counters fresh. Nothing here can pause or stop the pipeline.
+Read-only, offline dashboard. Every value comes from durable state files
+(service heartbeats, the generation ledger, MQ metrics, the bounded event feed)
+or from the deployed inference service. The page streams a compact snapshot on
+connect and then deltas only, so the SSE body stays a few kilobytes instead of
+re-sending the whole history every second.
 """
 
 from __future__ import annotations
@@ -32,11 +33,21 @@ from zenjev_lib import (
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 LEDGER_PATH = PERPETUAL_RUNS / "generations.jsonl"
+DEPLOYS_PATH = ARTIFACTS / "deploys.jsonl"
 MQ_METRICS = REPO / "artifacts/mq/metrics.json"
 STATIC_DIR = pathlib.Path(__file__).resolve().parent / "console"
-SERVICES = ("loop", "feeder", "fabricator", "console")
+SERVICES = ("loop", "feeder", "fabricator", "serve", "deploy", "console")
+SNAPSHOT_EVENTS = 40
+DELTA_EVENTS = 60
+LEDGER_ROWS = 24
+SERVE_HEALTH = "http://127.0.0.1:8791/health"
+LOOP_HEALTH = "http://127.0.0.1:8788/health"
 
 STARTED = time.time()
+STATE_LOCK = threading.Lock()
+STATE: dict[str, Any] = {"cache": {}, "cached_at": 0.0}
+EVENT_LOCK = threading.Lock()
+LAST_EVENT_SEQ = 0
 
 
 def ledger_entries() -> int:
@@ -47,28 +58,31 @@ def ledger_entries() -> int:
         return 0
 
 
-def snapshot() -> dict[str, Any]:
+def with_ages(heartbeats: dict[str, Any]) -> dict[str, Any]:
     import calendar
-    import time as _time
 
-    heartbeats = read_heartbeats(SERVICES)
-    now = _time.time()
+    now = time.time()
     for service in heartbeats.values():
         written = service.get("written_at") if isinstance(service, dict) else None
         age = None
         if isinstance(written, str):
             try:
-                age = round(now - calendar.timegm(_time.strptime(written, "%Y-%m-%dT%H:%M:%SZ")), 1)
+                age = round(now - calendar.timegm(time.strptime(written, "%Y-%m-%dT%H:%M:%SZ")), 1)
             except ValueError:
                 age = None
         service["age_seconds"] = age
         if service.get("state") == "running" and (age is None or age > 30.0):
             service["state"] = "stale"
-    ledger = tail_jsonl(LEDGER_PATH, 200)
-    events = tail_jsonl(EVENTS_PATH, 400)
-    mq = read_json(MQ_METRICS, default={}) or {}
+    return heartbeats
+
+
+def meta_block() -> dict[str, Any]:
+    """Compact scalars sent with every delta and stored in the snapshot."""
+    heartbeats = with_ages(read_heartbeats(SERVICES))
     loop = heartbeats.get("loop") or {}
-    counters = loop.get("counters") or {}
+    serve = heartbeats.get("serve") or {}
+    deploy = heartbeats.get("deploy") or {}
+    mq = read_json(MQ_METRICS, default={}) or {}
     live_bridge = loop.get("bridge") or {}
     if live_bridge.get("received") is not None:
         merged = dict(mq) if isinstance(mq, dict) else {}
@@ -76,65 +90,85 @@ def snapshot() -> dict[str, Any]:
         merged["adapter"] = merged.get("adapter") or "dir-spool"
         merged["live_source"] = "loop"
         mq = merged
-    feeder = heartbeats.get("feeder") or {}
-    fabricator = heartbeats.get("fabricator") or {}
-    generations = [record for record in ledger if record.get("kind") != "event"]
-    last_generation = generations[-1] if generations else None
-    first_at = generations[0].get("created_at") if generations else None
     return {
         "now": utc_now(),
-        "server_uptime_seconds": round(time.time() - STARTED, 1),
         "services": heartbeats,
         "loop": loop,
-        "counters": counters,
+        "serve": serve,
+        "deploy": deploy,
+        "counters": loop.get("counters") or {},
         "generation": {
             "count": ledger_entries(),
-            "latest": last_generation,
-            "since": first_at,
+            "latest_generation_id": (deploy.get("last_action") or {}).get("generation_deployed")
+            or serve.get("generation"),
+            "serve_generation": serve.get("generation"),
+            "serve_checkpoint_sha256_16": serve.get("checkpoint_sha256_16"),
+            "deploys": deploy.get("deploys"),
         },
-        "ledger_tail": generations[-12:],
         "mq": mq,
+        "train_batch": loop.get("train_batch"),
+        "skipped_bad_capture": (loop.get("counters") or {}).get("skipped_bad_capture"),
+        "deploy_progress": {
+            "next_deploy_in": deploy.get("next_deploy_in"),
+            "records_since_deploy": deploy.get("records_since_deploy"),
+            "records_threshold": deploy.get("records_threshold"),
+        },
         "feeder": {
-            "uptime_seconds": feeder.get("uptime_seconds"),
-            "totals": feeder.get("totals"),
-            "last_tick": feeder.get("last_tick"),
+            "uptime_seconds": (heartbeats.get("feeder") or {}).get("uptime_seconds"),
+            "totals": (heartbeats.get("feeder") or {}).get("totals"),
         },
         "fabricator": {
-            "uptime_seconds": fabricator.get("uptime_seconds"),
-            "emitted_total": fabricator.get("emitted_total"),
+            "uptime_seconds": (heartbeats.get("fabricator") or {}).get("uptime_seconds"),
+            "emitted_total": (heartbeats.get("fabricator") or {}).get("emitted_total"),
         },
-        "events": events,
-        "event_seq": events[-1]["seq"] if events else 0,
     }
 
 
+def snapshot() -> dict[str, Any]:
+    """Full snapshot used by /api/snapshot and the SSE handshake."""
+    body = meta_block()
+    body["server_uptime_seconds"] = round(time.time() - STARTED, 1)
+    body["ledger_tail"] = tail_jsonl(LEDGER_PATH, LEDGER_ROWS)
+    body["deploy_tail"] = tail_jsonl(DEPLOYS_PATH, 8)
+    body["events"] = tail_jsonl(EVENTS_PATH, SNAPSHOT_EVENTS)
+    body["event_seq"] = body["events"][-1]["seq"] if body["events"] else 0
+    return body
+
+
+def cached_snapshot() -> dict[str, Any]:
+    with STATE_LOCK:
+        if time.time() - STATE["cached_at"] < 1.0 and STATE["cache"]:
+            return STATE["cache"]
+        STATE["cache"] = snapshot()
+        STATE["cached_at"] = time.time()
+        return STATE["cache"]
+
+
+def events_after(seq: int, limit: int = DELTA_EVENTS) -> list[dict[str, Any]]:
+    events = [event for event in tail_jsonl(EVENTS_PATH, 400) if int(event.get("seq", 0)) > seq]
+    return events[-limit:]
+
+
 def proxy_extract(payload: dict[str, Any]) -> dict[str, Any]:
-    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    request = urllib.request.Request(
-        "http://127.0.0.1:8788/extract",
-        data=body,
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(request, timeout=30) as response:
-        return json.loads(response.read().decode("utf-8"))
-
-
-class ConsoleState:
-    def __init__(self) -> None:
-        self.lock = threading.Lock()
-        self.cache: dict[str, Any] = {}
-        self.cached_at = 0.0
-
-    def get(self) -> dict[str, Any]:
-        with self.lock:
-            if time.time() - self.cached_at < 0.9 and self.cache:
-                return self.cache
-            self.cache = snapshot()
-            self.cached_at = time.time()
-            return self.cache
-
-
-STATE = ConsoleState()
+    """Prefer the externally deployed inference service, fall back to the loop."""
+    last_error: Exception | None = None
+    for url, endpoint in (
+        (SERVE_HEALTH.replace("/health", "/extract"), "serve"),
+        (LOOP_HEALTH.replace("/health", "/extract"), "loop"),
+    ):
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        request = urllib.request.Request(
+            url, data=body, headers={"Content-Type": "application/json"}
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                value = json.loads(response.read().decode("utf-8"))
+            if isinstance(value, dict):
+                value["served_by"] = endpoint
+                return value
+        except Exception as error:  # noqa: BLE001
+            last_error = error
+    raise RuntimeError(str(last_error))
 
 
 def make_handler(static_dir: pathlib.Path):
@@ -166,11 +200,13 @@ def make_handler(static_dir: pathlib.Path):
             if self.path in ("/", "/index.html"):
                 self._file(static_dir / "index.html", "text/html; charset=utf-8")
             elif self.path == "/api/snapshot":
-                self._json(200, STATE.get())
+                self._json(200, cached_snapshot())
             elif self.path == "/api/generations":
                 self._json(200, {"items": tail_jsonl(LEDGER_PATH, 200)})
             elif self.path == "/api/events":
                 self._json(200, {"items": tail_jsonl(EVENTS_PATH, 300)})
+            elif self.path == "/api/deploys":
+                self._json(200, {"items": tail_jsonl(DEPLOYS_PATH, 100)})
             elif self.path == "/events":
                 self._sse()
             else:
@@ -194,9 +230,18 @@ def make_handler(static_dir: pathlib.Path):
                 try:
                     self._json(200, proxy_extract({"text": text}))
                 except Exception as error:  # noqa: BLE001
-                    self._json(502, {"error": f"loop_unreachable:{type(error).__name__}"})
+                    self._json(502, {"error": f"inference_unreachable:{type(error).__name__}"})
             else:
                 self._json(404, {"error": "not_found"})
+
+        def _send_event(self, payload: dict[str, Any]) -> bool:
+            try:
+                chunk = f"data: {json.dumps(payload, ensure_ascii=False)}\n\n".encode("utf-8")
+                self.wfile.write(chunk)
+                self.wfile.flush()
+                return True
+            except (BrokenPipeError, ConnectionResetError):
+                return False
 
         def _sse(self) -> None:
             self.send_response(200)
@@ -204,23 +249,21 @@ def make_handler(static_dir: pathlib.Path):
             self.send_header("Cache-Control", "no-store")
             self.send_header("Connection", "keep-alive")
             self.end_headers()
-            last_seq = 0
-            try:
-                while True:
-                    body = STATE.get()
-                    events = [event for event in body.get("events", []) if event.get("seq", 0) > last_seq]
-                    if events:
-                        last_seq = max(event.get("seq", 0) for event in events)
-                    payload = {
-                        "snapshot": {key: value for key, value in body.items() if key != "events"},
-                        "events": events[-60:],
-                    }
-                    chunk = f"data: {json.dumps(payload, ensure_ascii=False)}\n\n".encode("utf-8")
-                    self.wfile.write(chunk)
-                    self.wfile.flush()
-                    time.sleep(1.0)
-            except (BrokenPipeError, ConnectionResetError):
+            body = cached_snapshot()
+            last_seq = int(body.get("event_seq") or 0)
+            if not self._send_event(
+                {"type": "snapshot", "snapshot": {k: v for k, v in body.items() if k != "events"},
+                 "events": body.get("events", [])}
+            ):
                 return
+            while True:
+                time.sleep(1.0)
+                fresh = events_after(last_seq)
+                if fresh:
+                    last_seq = max(int(event.get("seq", 0)) for event in fresh)
+                delta = {"type": "delta", "meta": meta_block(), "events": fresh}
+                if not self._send_event(delta):
+                    return
 
         def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
             return
@@ -236,6 +279,7 @@ def heartbeat_loop() -> None:
                 "state": "running",
                 "uptime_seconds": round(time.time() - STARTED, 1),
                 "static_dir": str(STATIC_DIR.relative_to(REPO)),
+                "sse_mode": "snapshot+delta",
             },
         )
         time.sleep(5.0)

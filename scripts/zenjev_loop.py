@@ -61,6 +61,30 @@ os.environ.setdefault("JEV_MODEL_PATH", str(pathlib.Path.home() / "jev-model-bas
 JUDGE_CHARS = 1200
 
 
+def _batched_loss(model: Any, config: Any, pairs: list[tuple[str, dict[str, Any]]]) -> Any:
+    """One optimizer step over a micro-batch; per-example fallback on failure."""
+    try:
+        from gliner2.training import ExtractorCollator
+
+        collator = ExtractorCollator(
+            model.processor,
+            is_training=True,
+            max_len=config.runtime.inference_max_length,
+            architecture="span",
+            on_capacity_exceeded="raise",
+        )
+        result = model(collator(list(pairs)))
+        if isinstance(result, dict) and result.get("total_loss") is not None:
+            return result["total_loss"]
+    except Exception:
+        pass
+    losses = [
+        gliner2_step(model, config, {"input": text, "output": output})
+        for text, output in pairs
+    ]
+    return sum(losses) / len(losses)
+
+
 def _top_labels(distribution: dict, labels: list[str], *, k: int, threshold: float) -> list[str]:
     ranked = sorted(
         ((label, float(distribution.get(label, 0.0))) for label in labels),
@@ -100,6 +124,7 @@ def _synthesize(config: Any, text: str, judgment: dict[str, Any]) -> dict[str, A
 
 class Runtime:
     def __init__(self, config: Any) -> None:
+        from jev.model import gliner2_step
         from jev.mq import MqIngestor
         from jev.runtime import JevRuntime
         from jev.tool_task import resolve_tool_task
@@ -107,6 +132,8 @@ class Runtime:
 
         self.config = config
         self.admission = os.environ.get("ZENJEV_FABRICATOR_ADMISSION", "inference_only")
+        self.batch_size = max(1, int(os.environ.get("ZENJEV_TRAIN_BATCH", "4")))
+        self.batch_buffer: list[tuple[str, dict[str, Any]]] = []
         if self.admission not in ("inference_only", "canary_scored", "training_admitted"):
             raise SystemExit("invalid ZENJEV_FABRICATOR_ADMISSION")
         self.resolve_tool_task = resolve_tool_task
@@ -149,10 +176,37 @@ class Runtime:
                 ema_step=self.runtime.ema.updates,
             )
 
+        original_save = self.trainer.save_checkpoint
+
+        def save_with_manifest(*args: Any, **kwargs: Any) -> Any:
+            path = original_save(*args, **kwargs)
+            if not kwargs.get("archive_reason"):
+                latest = CHECKPOINT_DIR / "latest.pt"
+                atomic_write_json(
+                    CHECKPOINT_DIR / "latest.json",
+                    {
+                        "generation_id": int(self.runtime.stats.model_generation),
+                        "training_steps": int(self.runtime.stats.training_steps),
+                        "ema_step": int(self.runtime.ema.updates),
+                        "reset_id": int(self.runtime.stats.reset_id),
+                        "adapter_digest": sha256_hex(latest.read_bytes())
+                        if latest.exists()
+                        else None,
+                        "checkpoint": str(latest),
+                        "created_at": utc_now(),
+                    },
+                )
+            return path
+
+        self.trainer.save_checkpoint = save_with_manifest
+
         base_step = self.trainer.step_fn
 
         def step_with_loss(model: Any, example: dict[str, Any]) -> Any:
-            loss = base_step(model, example)
+            if isinstance(example, dict) and "batch" in example:
+                loss = _batched_loss(model, self.config, example["batch"])
+            else:
+                loss = base_step(model, example)
             try:
                 self.last_loss = float(loss.detach().item())
             except Exception:
@@ -190,6 +244,10 @@ class Runtime:
         self.counters["labelled_trained"] += 1
 
     def handle_tool_task(self, envelope: dict[str, Any]) -> None:
+        status = envelope.get("response_status")
+        if envelope.get("capture_error") or (isinstance(status, int) and status != 200):
+            self.counters["skipped_bad_capture"] += 1
+            return
         synthetic = bool(envelope.get("synthetic"))
         observed = envelope.get("observed_model") or {}
         model_id = str(observed.get("model_id") or observed.get("id") or "")
@@ -305,12 +363,16 @@ class Runtime:
         except Exception:
             self.counters["label_rejected"] += 1
             return False
-        try:
-            self.stream.submit(example)
-        except RuntimeError:
-            self.counters["trainer_closed"] += 1
-            return False
         self.counters["training_examples"] += 1
+        self.batch_buffer.append((text, example["output"]))
+        if len(self.batch_buffer) >= self.batch_size:
+            pending = self.batch_buffer
+            self.batch_buffer = []
+            try:
+                self.stream.submit({"batch": pending})
+            except RuntimeError:
+                self.counters["trainer_closed"] += 1
+                return False
         return True
 
     # ------------------------------------------------------------------ ledger
@@ -335,6 +397,7 @@ class Runtime:
                     "reset_id": int(self.runtime.stats.reset_id),
                     "records_consumed_total": int(self.counters["real_pairs"]),
                     "training_examples_total": int(self.counters["training_examples"]),
+                    "train_batch": self.batch_size,
                     "loss": loss,
                     "created_at": utc_now(),
                 }
@@ -408,6 +471,7 @@ class Runtime:
                     "bridge": bridge_status,
                     "counters": snapshot,
                     "events": seq,
+                    "train_batch": self.batch_size,
                     "records_per_minute": round(rate * 60.0, 2),
                     "seconds_since_last_record": round(now - self.last_record_at, 1),
                     "generation": int(self.runtime.stats.model_generation),

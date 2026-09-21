@@ -148,6 +148,12 @@ def _cmd_health(args: argparse.Namespace) -> int:
     import pathlib
     import time
 
+    def read_json(path: pathlib.Path, default: object = None) -> object:
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return default
+
     heartbeat_dir = pathlib.Path(args.heartbeat_dir)
     ledger = pathlib.Path(args.ledger)
     now = time.time()
@@ -155,9 +161,10 @@ def _cmd_health(args: argparse.Namespace) -> int:
         "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "services": {},
         "sessions": None,
+        "deploy_progress": None,
         "ok": True,
     }
-    for name in ("loop", "feeder", "fabricator", "console"):
+    for name in ("loop", "feeder", "fabricator", "serve", "deploy", "console"):
         path = heartbeat_dir / f"{name}.json"
         entry: dict[str, Any] = {"state": "missing", "age_seconds": None, "stale": True}
         report["ok"] = False
@@ -184,6 +191,14 @@ def _cmd_health(args: argparse.Namespace) -> int:
             if not stale:
                 report["ok"] = True
         report["services"][name] = entry
+    deploy = read_json(heartbeat_dir / "deploy.json", default={}) or {}
+    if isinstance(deploy, dict) and deploy.get("records_threshold"):
+        report["deploy_progress"] = {
+            "records_since_deploy": deploy.get("records_since_deploy"),
+            "records_threshold": deploy.get("records_threshold"),
+            "next_deploy_in": deploy.get("next_deploy_in"),
+            "decision": (deploy.get("last_action") or {}).get("decision"),
+        }
     if ledger.exists():
         sessions: list[dict[str, Any]] = []
         for line in ledger.read_text(encoding="utf-8").splitlines():

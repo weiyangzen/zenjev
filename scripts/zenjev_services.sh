@@ -3,7 +3,7 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-UNITS=(zenjev-feeder zenjev-loop zenjev-fabricator zenjev-console)
+UNITS=(zenjev-feeder zenjev-loop zenjev-fabricator zenjev-serve zenjev-deploy zenjev-console)
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 PYTHON="$REPO/.venv/bin/python"
 LOG_DIR="$REPO/runs/jev/logs"
@@ -63,6 +63,9 @@ case "$command" in
   evidence)
     cd "$REPO" && exec "$PYTHON" scripts/perpetual_evidence.py
     ;;
+  deploy)
+    cd "$REPO" && exec "$PYTHON" scripts/zenjev_deploy.py --once "$@"
+    ;;
   *)
     cat <<EOF
 usage: zenjev_services.sh <command>
@@ -78,6 +81,7 @@ usage: zenjev_services.sh <command>
   rotate     rotate service log files over MAX_LOG_MB (default 20)
   health     heartbeat/gap/session report (exit != 0 when a service is stale)
   evidence   freeze G12-G15 evidence into artifacts/perpetual/acceptance.json
+  deploy     evaluate one LoRA deploy decision (add --force for a drill)
 EOF
     exit 2
     ;;

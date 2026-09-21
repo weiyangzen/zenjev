@@ -184,6 +184,22 @@
       </div>
     </div>
     <div class="card">
+      <div class="label">Inference service · deployed LoRA</div>
+      <div class="row" style="margin-top:8px">
+        <span class="chip" id="serve-state">state —</span>
+        <span class="chip">gen <b id="serve-gen">—</b></span>
+        <span class="chip">ckpt <b id="serve-ckpt">—</b></span>
+        <span class="chip">requests <b id="serve-req">—</b></span>
+        <span class="chip">p95 <b id="serve-p95">—</b></span>
+        <span class="chip">deploys <b id="deploy-count">—</b></span>
+        <span class="chip" id="deploy-last">gate —</span>
+        <span class="chip" id="deploy-next">next —</span>
+        <span class="chip">batch <b id="train-batch">—</b></span>
+        <span class="chip">filtered <b id="filtered">—</b></span>
+      </div>
+      <div class="sub" id="serve-sub">not deployed yet</div>
+    </div>
+    <div class="card">
       <div class="label">Services</div>
       <div id="services" class="row" style="margin-top:8px"></div>
     </div>
@@ -317,6 +333,21 @@ function hideFeed() { Array.from(feed.children).forEach((child) => child.remove(
 function render(events) {
   const nearBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 80;
   events.forEach((event) => {
+    if ((event.seq || 0) > lastSeq) lastSeq = event.seq || lastSeq;
+    if (event.kind === "deploy") {
+      const node = document.createElement("div");
+      node.className = "task";
+      node.style.borderLeftColor = "var(--cyan)";
+      node.innerHTML = `<div class="meta">
+          <span class="chip train">deploy</span>
+          <span class="chip">generation ${event.generation_deployed ?? "—"}</span>
+          <span class="chip">${event.deploy_seconds ?? "—"} s</span>
+          <span class="chip ${event.health_ok ? "allow" : "reject"}">${event.health_ok ? "healthy" : "failed"}</span>
+          <span>${event.deployed_at || ""}</span></div>
+        <div class="req">checkpoint ${escapeHtml(String(event.adapter_digest || "").slice(0, 20))} → inference ${escapeHtml(String(event.loaded_checkpoint_sha256_16 || "—"))}</div>`;
+      feed.appendChild(node);
+      return;
+    }
     if (event.kind === "generation") {
       const row = document.createElement("div");
       row.className = "task";
@@ -338,16 +369,18 @@ function render(events) {
   if (!paused && nearBottom) feed.scrollTop = feed.scrollHeight;
 }
 
-function applySnapshot(body) {
+function applyMeta(body) {
   const counters = body.counters || {};
   const loop = body.loop || {};
   const generation = body.generation || {};
   $("generation").textContent = fmt(generation.count);
-  const latest = generation.latest || {};
-  $("generation-sub").textContent = latest.generation_id
-    ? `latest gen ${latest.generation_id} · steps ${fmt(latest.training_steps)} · reset ${latest.reset_id ?? 0}`
-    : "no publish yet";
-  $("gen-since").textContent = generation.since ? `generations since ${generation.since}` : "";
+  const served = generation.serve_generation;
+  $("generation-sub").textContent = served
+    ? `inference serving gen ${served} · ledger max ${generation.latest_generation_id ?? "—"}`
+    : "no deploy yet";
+  $("gen-since").textContent = generation.latest_generation_id
+    ? `latest published generation ${generation.latest_generation_id}`
+    : "";
   if (lastGen !== -1 && generation.count > lastGen) { pulse = 6; }
   lastGen = generation.count;
   drawRing(generation.count || 0);
@@ -360,7 +393,7 @@ function applySnapshot(body) {
   $("uptime").textContent = "uptime " + fmtDuration(loop.uptime_seconds);
 
   $("st-ingest").textContent = fmt(counters.real_pairs);
-  $("st-extract").textContent = fmt(loop.training_steps !== undefined ? (counters.real_pairs || 0) : "—");
+  $("st-extract").textContent = fmt(counters.real_pairs);
   $("st-allow").textContent = fmt(counters.decision_allow);
   $("st-review").textContent = fmt(counters.decision_review);
   $("st-reject").textContent = fmt(counters.decision_reject);
@@ -388,7 +421,38 @@ function applySnapshot(body) {
   $("resets").textContent = fmt(loop.reset_id);
   $("gaps").textContent = fmt(loop.seconds_since_last_record) + " s";
 
-  history.rate.push(loop.records_per_minute); history.lat.push(loop.latency_p95_ms); history.loss.push(loop.loss);
+  const serve = body.serve || {};
+  const serveState = $("serve-state");
+  serveState.textContent = "state " + (serve.state || "missing");
+  serveState.className = "chip " + classify(serve);
+  $("serve-gen").textContent = fmt(serve.generation);
+  $("serve-ckpt").textContent = serve.checkpoint_sha256_16 ? serve.checkpoint_sha256_16.slice(0, 8) : (serve.model_source || "base");
+  $("serve-req").textContent = fmt(serve.requests);
+  $("serve-p95").textContent = fmt(serve.latency_p95_ms) + " ms";
+  $("serve-sub").textContent = serve.state
+    ? `${serve.model_source || "?"} · ${(serve.checkpoint || "no checkpoint").split("/").pop()} · uptime ${fmtDuration(serve.uptime_seconds)}`
+    : "not deployed yet";
+  const deploy = body.deploy || {};
+  const lastAction = deploy.last_action || {};
+  $("deploy-count").textContent = fmt(deploy.deploys);
+  $("deploy-last").textContent = lastAction.deployed_at
+    ? `last deploy gen ${lastAction.generation_deployed} · ${lastAction.health_ok ? "ok" : "failed"} · ${lastAction.deploy_seconds ?? "—"}s`
+    : `gate: ${lastAction.decision || "idle"}`;
+  const progress = body.deploy_progress || {};
+  if (progress.records_threshold) {
+    const since = progress.records_since_deploy ?? 0;
+    const left = progress.next_deploy_in ?? Math.max(0, progress.records_threshold - since);
+    const pct = Math.min(100, Math.round((since / progress.records_threshold) * 100));
+    $("deploy-next").textContent = `next deploy ${pct}% · ${fmt(left)} records left`;
+  } else {
+    $("deploy-next").textContent = "next —";
+  }
+  $("train-batch").textContent = fmt(body.train_batch);
+  $("filtered").textContent = fmt(body.skipped_bad_capture);
+
+  history.rate.push(loop.records_per_minute);
+  history.lat.push(loop.latency_p95_ms);
+  history.loss.push(loop.loss);
   Object.keys(history).forEach((key) => { if (history[key].length > 180) history[key].shift(); });
   $("rate-now").textContent = fmt(loop.records_per_minute) + " /min";
   $("lat-now").textContent = fmt(loop.latency_p95_ms) + " ms";
@@ -401,14 +465,27 @@ function applySnapshot(body) {
   $("services").innerHTML = Object.entries(services).map(([name, service]) => {
     const kind = classify(service);
     const uptime = service.uptime_seconds !== undefined ? fmtDuration(service.uptime_seconds) : (service.state || "missing");
-    return `<span class="chip ${kind}">${name} · ${uptime}</span>`;
+    return `<span class="chip ${kind}">${name} · ${uptime} · ${service.age_seconds ?? "—"}s</span>`;
   }).join(" ");
 
-  const ledger = $("ledger");
-  const rows = (body.ledger_tail || []).slice(-6).reverse();
-  ledger.innerHTML = rows.length ? rows.map((row) =>
-    `<div>gen ${row.generation_id} · steps ${row.training_steps} · ema ${row.ema_step} · loss ${row.loss === null || row.loss === undefined ? "—" : Number(row.loss).toFixed(4)} · ${row.created_at}</div>`
-  ).join("") : "no generations yet";
+  if (body.ledger_tail) {
+    const ledger = $("ledger");
+    const rows = (body.ledger_tail || []).slice(-6).reverse();
+    ledger.innerHTML = rows.length ? rows.map((row) =>
+      `<div>gen ${row.generation_id} · steps ${row.training_steps} · ema ${row.ema_step} · loss ${row.loss === null || row.loss === undefined ? "—" : Number(row.loss).toFixed(4)} · ${row.created_at}</div>`
+    ).join("") : "no generations yet";
+  }
+  const deployRows = body.deploy_tail;
+  if (deployRows) {
+    $("deploy-count").textContent = fmt(deploy.deploys ?? deployRows.length);
+  }
+}
+
+function applySnapshot(body) {
+  applyMeta(body);
+  hideFeed();
+  lastSeq = 0;
+  render(body.events || []);
 }
 
 function connect() {
@@ -419,10 +496,16 @@ function connect() {
   source.onmessage = (message) => {
     let payload;
     try { payload = JSON.parse(message.data); } catch { return; }
-    applySnapshot(payload.snapshot || {});
-    if (Array.isArray(payload.events)) {
-      const fresh = payload.events.filter((event) => (event.seq || 0) > lastSeq);
-      if (fresh.length) { lastSeq = Math.max(...fresh.map((event) => event.seq || 0)); render(fresh); }
+    const type = payload.type || (payload.snapshot ? "snapshot" : "delta");
+    if (type === "snapshot") {
+      applyMeta(payload.snapshot || {});
+      const events = payload.events || [];
+      hideFeed();
+      lastSeq = 0;
+      render(events);
+    } else {
+      if (payload.meta) applyMeta(payload.meta);
+      render(payload.events || []);
     }
   };
 }
@@ -441,7 +524,9 @@ $("probe").addEventListener("click", async () => {
   try {
     const response = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
     const body = await response.json();
-    $("probe-status").textContent = response.ok ? `gen ${body.generation} · ema ${body.ema_step}` : "error";
+    $("probe-status").textContent = response.ok
+      ? `gen ${body.generation} · ${body.served_by || "?"}`
+      : "error";
     $("probe-out").textContent = JSON.stringify(body.output ?? body, null, 2);
   } catch (error) {
     $("probe-status").textContent = String(error);

@@ -36,6 +36,7 @@ STATE_PATH = PERPETUAL_RUNS / "feeder-state.json"
 SPOOL_PATH = FEED_DIR / "rawspool.ndjson"
 CONFIG_PATH = "configs/zenjev_perpetual.yaml"
 LINE_CAP = 8 * 1024 * 1024
+MAX_ENVELOPE_BYTES = 256 * 1024
 TEXT_CAP = 6000
 CHUNK = 1 << 20
 
@@ -164,6 +165,12 @@ def convert_line(
     response = _response_text(record).strip()
     if not request or not response:
         return None, "missing_text"
+    capture_error = record.get("captureError")
+    if capture_error:
+        return None, "capture_error"
+    status = record.get("responseStatus")
+    if isinstance(status, (int, float)) and int(status) != 200:
+        return None, f"non_200_response:{int(status)}"
     model = _observed_model(record) or fallback_model
     if not model:
         return None, "missing_model"
@@ -190,7 +197,11 @@ def convert_line(
         raw_path=rel,
         raw_offset=offset,
         synthetic=False,
+        response_status=int(status) if isinstance(status, (int, float)) else None,
+        capture_error=False,
     )
+    if len(json.dumps(envelope, ensure_ascii=False)) > MAX_ENVELOPE_BYTES:
+        return None, "envelope_over_cap"
     return envelope, None
 
 

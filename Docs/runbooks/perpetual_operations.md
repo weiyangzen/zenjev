@@ -11,7 +11,9 @@ used in production.
 | `zenjev-feeder` | `scripts/zenjev_feeder.py` | Reads `/home/sansha/data/jevraw` read-only, normalizes captures into §1.5 `tool_task_pair` envelopes appended to `runs/jev/feed/rawspool.ndjson`. Own watermark: `runs/jev/perpetual/feeder-state.json`. Throttled (`--max-records 10 --tick-sleep 2.0`) so the spool stays near training capacity. |
 | `zenjev-loop` | `scripts/zenjev_loop.py` | Starts the Rust `dir-spool` bridge over `runs/jev/feed/*.ndjson`, consumes with credit backpressure, extracts with the EMA snapshot, routes the deterministic decision, self-labels with the live LoRA judge (canonical `run_jevraw_loop.py` recipe), trains LoRA, publishes generations, serves inference on `127.0.0.1:8788`, and writes `runs/jev/status.json` for `zenjev-monitor`. |
 | `zenjev-fabricator` | `scripts/zenjev_fabricator.py` | Emits synthetic canary `tool_task_pair` envelopes to `runs/jev/feed/fabricator.ndjson`. Never trained unless `ZENJEV_FABRICATOR_ADMISSION=training_admitted`. |
-| `zenjev-console` | `scripts/zenjev_console.py` | Read-only web panel on `0.0.0.0:8790` (SSE), serves `scripts/console/index.html`, proxies `/api/extract` to the loop. |
+| `zenjev-serve` | `scripts/zenjev_serve.py` | Perpetual standalone inference on `0.0.0.0:8791` over the deployed LoRA checkpoint; never trains; writes `artifacts/perpetual/serve.json`. |
+| `zenjev-deploy` | `scripts/zenjev_deploy.py` | LoRA deploy gate: restarts `zenjev-serve` on a stable newer checkpointed generation, rate-limited and health-checked; appends `artifacts/perpetual/deploys.jsonl`. |
+| `zenjev-console` | `scripts/zenjev_console.py` | Read-only web panel on `0.0.0.0:8790` (compact snapshot + delta SSE), serves `scripts/console/index.html`, proxies `/api/extract` to `zenjev-serve` with a loop fallback. |
 
 Open the panel at `http://192.168.20.214:8790/`. The canonical `zenjev-monitor`
 (`monitor/`) remains an independent read-only host/GPU observer that reads
@@ -45,6 +47,13 @@ tail -f runs/jev/logs/zenjev-loop.log
 
 ## Fabricator admission
 
+Deployment policy (`zenjev-deploy`): `ZENJEV_DEPLOY_MIN_INTERVAL_S` (default
+300) is the minimum seconds between redeploys, `ZENJEV_DEPLOY_QUIET_S` (default
+20) requires a checkpointed generation to be settled first, and
+`ZENJEV_DEPLOY_HEALTH_TIMEOUT_S` (default 240) bounds the health wait after a
+restart. `scripts/zenjev_services.sh deploy --once` prints the current gate
+decision; add `--force` for a drill.
+
 `ZENJEV_FABRICATOR_ADMISSION` on `zenjev-loop` is one of `inference_only`
 (default), `canary_scored`, or `training_admitted`. Only `training_admitted`
 lets synthetic records into LoRA training; synthetic records are always counted
@@ -57,7 +66,8 @@ python -m jev.cli health                      # heartbeats, gaps, sessions; exit
 python scripts/perpetual_evidence.py          # freeze G12-G15 evidence into artifacts/perpetual/acceptance.json
 scripts/zenjev_services.sh restart            # start/stop/restart/status/logs/rotate wrapper
 python scripts/restart_injection.py           # SIGKILL drill: supervisor restart + resume proof
-curl -s http://127.0.0.1:8788/health | python3 -m json.tool
+curl -s http://127.0.0.1:8791/health | python3 -m json.tool   # deployed inference service
+curl -s http://127.0.0.1:8788/health | python3 -m json.tool   # loop-internal endpoint
 curl -s http://127.0.0.1:8790/api/snapshot | python3 -m json.tool | head -40
 curl -s -X POST http://127.0.0.1:8790/api/extract \
   -H 'Content-Type: application/json' \
@@ -85,4 +95,7 @@ python3 -m pytest -q tests/test_perpetual.py
 * Generation ids were reissued by early restarts before the ledger-seeding fix;
   the historical duplicate window is recorded in `acceptance.json`, and the
   current session is strictly monotonic.
-* A multi-hour soak with reboot injection (ZJ-071) is not yet recorded.
+* Redeploying `zenjev-serve` restarts the process (about 20-40 s for the 205M
+  model load); the deploy gate rate-limits this and health-checks each rollout.
+* The panel's SSE stream is a compact snapshot plus per-second deltas; the full
+  history stays available on `/api/snapshot`, `/api/events`, `/api/deploys`.

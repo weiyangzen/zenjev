@@ -76,8 +76,9 @@ feeder normalizes `/home/sansha/data/jevraw` into §1.5 envelopes, the Rust
 `dir-spool` MQ bridge delivers them with byte-offset watermarks and
 ack-after-durable-acceptance, `zenjev-loop` self-labels with the live LoRA
 judge (`run_jevraw_loop.py` recipe), trains, publishes monotonic LoRA
-generations and serves the EMA snapshot, and `zenjev-console` renders the live
-panel.
+generations, `zenjev-serve` keeps an externally reachable inference endpoint on
+the deployed LoRA, `zenjev-deploy` redeploys it onto stable new checkpoints,
+and `zenjev-console` renders the live panel.
 
 ```bash
 bash scripts/install_zenjev_services.sh          # install + start + linger note

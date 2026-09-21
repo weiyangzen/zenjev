@@ -123,3 +123,34 @@ def test_fabricator_emits_valid_synthetic_canary(config):
         expected=record["expected"],
     )
     assert validate_envelope(json.dumps(envelope).encode(), config, max_bytes=1024 * 1024) == envelope
+
+
+def test_feeder_skips_failed_and_error_captures(config):
+    allowed = allowed_models(config)
+    base = {
+        "model": "gpt-5.6-sol",
+        "responseStatus": 413,
+        "input_body": json.dumps(
+            {"input": [{"content": [{"text": "A sufficiently long request text for the parser."}]}]}
+        ),
+        "output_body": "data: " + json.dumps(
+            {"output": [{"content": [{"text": "body too large"}]}]}
+        ),
+    }
+    envelope, reason = convert_line(
+        json.dumps(base).encode(), rel="x.ndjson", offset=0, config=config, allowed_models=allowed
+    )
+    assert envelope is None and reason == "non_200_response:413"
+
+    errored = {**base, "responseStatus": 200, "captureError": "truncated"}
+    envelope, reason = convert_line(
+        json.dumps(errored).encode(), rel="x.ndjson", offset=0, config=config, allowed_models=allowed
+    )
+    assert envelope is None and reason == "capture_error"
+
+    healthy = {**base, "responseStatus": 200}
+    envelope, reason = convert_line(
+        json.dumps(healthy).encode(), rel="x.ndjson", offset=0, config=config, allowed_models=allowed
+    )
+    assert reason is None and envelope is not None
+    assert envelope["response_status"] == 200 and envelope["capture_error"] is False

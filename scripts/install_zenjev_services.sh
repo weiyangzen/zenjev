@@ -44,17 +44,21 @@ write_unit "zenjev-loop" "ZenJev perpetual MQ + RSI LoRA training + EMA inferenc
   "$PYTHON $REPO/scripts/zenjev_loop.py"
 write_unit "zenjev-fabricator" "ZenJev synthetic schema-task fabricator (canaries)" \
   "$PYTHON $REPO/scripts/zenjev_fabricator.py"
+write_unit "zenjev-serve" "ZenJev perpetual inference service (deployed LoRA, 0.0.0.0:8791)" \
+  "$PYTHON $REPO/scripts/zenjev_serve.py"
+write_unit "zenjev-deploy" "ZenJev LoRA deploy gate (redeploy zenjev-serve on newer stable generations)" \
+  "$PYTHON $REPO/scripts/zenjev_deploy.py"
 write_unit "zenjev-console" "ZenJev live console (read-only web panel)" \
   "$PYTHON $REPO/scripts/zenjev_console.py"
 
 systemctl --user daemon-reload
-systemctl --user enable zenjev-feeder zenjev-loop zenjev-fabricator zenjev-console
+systemctl --user enable zenjev-feeder zenjev-loop zenjev-fabricator zenjev-serve zenjev-deploy zenjev-console
 
 if ! loginctl show-user "$USER" 2>/dev/null | grep -q "Linger=yes"; then
   echo "note: loginctl enable-linger $USER is required for reboot persistence (needs sudo)"
 fi
 
-systemctl --user restart zenjev-feeder zenjev-loop zenjev-fabricator zenjev-console
+systemctl --user restart zenjev-feeder zenjev-loop zenjev-fabricator zenjev-serve zenjev-deploy zenjev-console
 sleep 2
-systemctl --user --no-pager --lines=0 status zenjev-feeder zenjev-loop zenjev-fabricator zenjev-console || true
-echo "installed: $UNIT_DIR/zenjev-{feeder,loop,fabricator,console}.service"
+systemctl --user --no-pager --lines=0 status zenjev-feeder zenjev-loop zenjev-fabricator zenjev-serve zenjev-deploy zenjev-console || true
+echo "installed: $UNIT_DIR/zenjev-{feeder,loop,fabricator,serve,deploy,console}.service"
