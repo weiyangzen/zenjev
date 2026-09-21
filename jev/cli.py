@@ -142,6 +142,65 @@ def _cmd_metrics(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_health(args: argparse.Namespace) -> int:
+    """Perpetual service health: heartbeat state, uptime, gaps, sessions."""
+    import calendar
+    import pathlib
+    import time
+
+    heartbeat_dir = pathlib.Path(args.heartbeat_dir)
+    ledger = pathlib.Path(args.ledger)
+    now = time.time()
+    report: dict[str, Any] = {
+        "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "services": {},
+        "sessions": None,
+        "ok": True,
+    }
+    for name in ("loop", "feeder", "fabricator", "console"):
+        path = heartbeat_dir / f"{name}.json"
+        entry: dict[str, Any] = {"state": "missing", "age_seconds": None, "stale": True}
+        report["ok"] = False
+        if path.exists():
+            try:
+                body = json.loads(path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                body = {}
+            age = None
+            written = body.get("written_at")
+            if isinstance(written, str):
+                try:
+                    age = round(now - calendar.timegm(time.strptime(written, "%Y-%m-%dT%H:%M:%SZ")), 1)
+                except ValueError:
+                    age = None
+            stale = body.get("state") != "running" or age is None or age > args.stale_seconds
+            entry = {
+                "state": body.get("state", "unknown"),
+                "uptime_seconds": body.get("uptime_seconds"),
+                "age_seconds": age,
+                "pid": body.get("pid"),
+                "stale": stale,
+            }
+            if not stale:
+                report["ok"] = True
+        report["services"][name] = entry
+    if ledger.exists():
+        sessions: list[dict[str, Any]] = []
+        for line in ledger.read_text(encoding="utf-8").splitlines():
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            pid = row.get("session_pid")
+            if pid is None:
+                continue
+            if not sessions or sessions[-1]["pid"] != pid:
+                sessions.append({"pid": pid, "generation": row.get("generation_id"), "at": row.get("created_at")})
+        report["sessions"] = {"observed": len(sessions), "recent": sessions[-3:]}
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    return 0 if report["ok"] else 1
+
+
 def _cmd_reset(args: argparse.Namespace) -> int:
     from .runtime import JevRuntime
     from .training import ContinuousLoRATrainer
@@ -392,6 +451,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--checkpoint", default=None)
     p.add_argument("--reason", default="operator_requested")
     p.set_defaults(func=_cmd_reset)
+
+    p = sub.add_parser("health")
+    p.add_argument("--heartbeat-dir", default="artifacts/perpetual")
+    p.add_argument("--ledger", default="runs/jev/perpetual/generations.jsonl")
+    p.add_argument("--stale-seconds", type=float, default=30.0)
+    p.set_defaults(func=_cmd_health)
 
     mq = sub.add_parser("mq")
     mq_sub = mq.add_subparsers(dest="mq_command", required=True)

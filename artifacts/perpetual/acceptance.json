@@ -1,0 +1,106 @@
+{
+  "recorded_at": "2026-09-21T10:13:33Z",
+  "services": {
+    "loop": "running",
+    "feeder": "running",
+    "fabricator": "running",
+    "console": "running"
+  },
+  "uptime_seconds": {
+    "loop": 8.3,
+    "feeder": 629.7,
+    "fabricator": 628.8,
+    "console": 626.1
+  },
+  "lora": {
+    "generation": 1838,
+    "training_steps": 10430,
+    "ema_step": 2808,
+    "reset_id": 2,
+    "last_loss": 2.495613898645388e-06
+  },
+  "generation_ledger": {
+    "entries": 2103,
+    "max_generation_id": 1839,
+    "monotonic_in_current_session": true,
+    "historical_duplicate_ids_before_seeding_fix": 264,
+    "latest_session_pid": 26640
+  },
+  "counters": {
+    "decision_reject": 33,
+    "decision_review": 5,
+    "real_pairs": 5428,
+    "synthetic_pairs": 7,
+    "training_examples": 5424
+  },
+  "latency_ms": {
+    "p50": 29.119,
+    "p95": 76.336
+  },
+  "records_per_minute": 569.0,
+  "mq": {
+    "accepted": 39,
+    "acked": 39,
+    "consumer_lag": 190133892,
+    "delivered": 39,
+    "dlq": 0,
+    "duplicates_suppressed": 1,
+    "inflight": 1,
+    "last_error_class": null,
+    "offset_checkpoint": 91542770,
+    "quarantined": 0,
+    "received": 40
+  },
+  "vram": {
+    "allocated_mb": 1848.6,
+    "reserved_mb": 3078.0
+  },
+  "feeder_totals": {
+    "bytes_read": 639600892,
+    "envelopes_written": 3949
+  },
+  "fabricator_emitted": 210,
+  "console": {
+    "http_status": 200,
+    "page_bytes": 22875,
+    "event_seq": 59,
+    "generations_visible": 2103
+  },
+  "live_inference_probe": {
+    "generation": 1839,
+    "ema_step": 2813,
+    "has_output": true,
+    "schema_digest": "27e764552cfbac9a"
+  },
+  "systemd": [
+    "NRestarts=0\nId=zenjev-feeder.service\nActiveState=active",
+    "NRestarts=2\nId=zenjev-loop.service\nActiveState=active",
+    "NRestarts=0\nId=zenjev-fabricator.service\nActiveState=active",
+    "NRestarts=0\nId=zenjev-console.service\nActiveState=active"
+  ],
+  "restart_injection": {
+    "injected_at": "2026-09-21T10:13:18Z",
+    "recorded_at": "2026-09-21T10:13:33Z",
+    "unit": "zenjev-loop",
+    "signal": "SIGKILL",
+    "main_pid_killed": 26448,
+    "pid_before": 26448,
+    "pid_after": 26640,
+    "generation_before": 1833,
+    "generation_after": 1838,
+    "training_steps_before": 10413,
+    "training_steps_after": 10430,
+    "uptime_after_seconds": 8.3,
+    "bridge_alive_after": true,
+    "systemd_restarts_before": "1",
+    "systemd_restarts_after": "2",
+    "resumed_from_checkpoint": true,
+    "checkpoint_mtime": "2026-09-21T10:13:33Z",
+    "ledger_entries_before": 2097,
+    "ledger_entries_after": 2103,
+    "duplicate_generation_ids_before": 264,
+    "duplicate_generation_ids_after": 264,
+    "generation_monotonic": true,
+    "resumed_within_deadline": true
+  }
+}

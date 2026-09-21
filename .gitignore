@@ -19,3 +19,7 @@ artifacts/checkpoints/
 mq/target/
 Cargo.toml.lock
 monitor/target/
+artifacts/perpetual/*
+!artifacts/perpetual/acceptance.json
+!artifacts/perpetual/restart_injection.json
+artifacts/mq/metrics.json

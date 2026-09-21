@@ -68,3 +68,24 @@ envelope, deduplicates by `record_id` plus content hash, spools to a bounded
 local WAL, and acks or commits the broker offset only after the trainer durably
 accepts the record. The contract is frozen in §1.5 of
 [`Docs/stage0_zenjev_blueprint.md`](Docs/stage0_zenjev_blueprint.md).
+
+## Perpetual runtime (Stage 0.1)
+
+The accepted Stage 0 pipeline now runs unstopped on the GPU host: a read-only
+feeder normalizes `/home/sansha/data/jevraw` into §1.5 envelopes, the Rust
+`dir-spool` MQ bridge delivers them with byte-offset watermarks and
+ack-after-durable-acceptance, `zenjev-loop` self-labels with the live LoRA
+judge (`run_jevraw_loop.py` recipe), trains, publishes monotonic LoRA
+generations and serves the EMA snapshot, and `zenjev-console` renders the live
+panel.
+
+```bash
+bash scripts/install_zenjev_services.sh          # install + start + linger note
+scripts/zenjev_services.sh status               # units + console URL
+scripts/zenjev_services.sh health               # heartbeats, gaps, sessions
+scripts/zenjev_services.sh logs zenjev-loop 80
+scripts/zenjev_services.sh evidence             # freeze acceptance evidence
+```
+
+Live console: `http://<host>:8790/`. Full operations guide:
+[`Docs/runbooks/perpetual_operations.md`](Docs/runbooks/perpetual_operations.md).

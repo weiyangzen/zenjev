@@ -1,5 +1,6 @@
 use crate::config::BridgeConfig;
 
+pub mod dir_spool;
 pub mod mock;
 #[cfg(feature = "nats")]
 pub mod nats;
@@ -37,6 +38,7 @@ pub trait Source: Send {
 pub fn open_source(config: &BridgeConfig) -> Result<Box<dyn Source>, String> {
     match config.adapter.as_str() {
         "mock" => Ok(Box::new(mock::MockSource::open(config)?)),
+        "dir-spool" => Ok(Box::new(dir_spool::DirSpoolSource::open(config)?)),
         "nats-jetstream" => open_nats(config),
         "kafka" => Err(
             "adapter kafka requires a build with --features kafka and system librdkafka/cmake; \

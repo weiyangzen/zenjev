@@ -427,6 +427,9 @@ def render_bridge_config(config: JevConfig, *, overrides: dict[str, Any] | None 
         "metrics_path": mq.metrics_path,
         "source_path": mq.source_path,
         "state_path": mq.state_path,
+        "source_root": mq.source_root,
+        "patterns": list(mq.patterns),
+        "poll_interval_ms": mq.poll_interval_ms,
         "exit_after_drain": bool(mq.exit_after_drain),
     }
     if overrides:

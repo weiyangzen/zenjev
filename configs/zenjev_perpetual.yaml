@@ -1,0 +1,116 @@
+# ZenJev perpetual runtime config (§1.6–1.9).
+# Source of truth for the always-on loop: dir-spool MQ over the normalized
+# envelope spool, RSI LoRA training beside EMA inference, live console.
+model_id: fastino/gliner2-base-v1
+model_revision: 79c3a777abc572b4767922f3916cf63fb5754df2
+schema:
+  name: jev_tool_task
+  version: 1
+  language: auto
+  description: Request/response task and technology extraction for ZenJev routing.
+  entities:
+    task_detail: Detailed request intent, constraint, or required operation.
+    tool: Tool or external service explicitly used in the response.
+    programming_language: Programming language used or recommended in the response.
+    framework: Framework or library used in the response.
+    technology: Important technology or stack component in the response.
+    model: Model named in the request or response.
+  classifications:
+    task_type: [coding, code_review, debugging, research, planning, operations, translation, data_analysis, tool_use, other]
+    decision_choice: [PyTorch, GLiNER2, PostgreSQL, Docker, Kubernetes, Transformers, PEFT, Python, JavaScript, TypeScript, Go, Rust, Java, SQL, C++, python, bash, git, browser, docker]
+  fields:
+    - {name: request_goal, dtype: str, description: Normalized request goal, required: false}
+    - {name: response_summary, dtype: str, description: Short response outcome, required: false}
+  relations: [uses_tool, uses_language, uses_framework, uses_technology]
+  unknown_label_policy: reject
+  word_splitter: whitespace
+tool_task:
+  name: jev-tool-task
+  version: 1
+  task_types: [coding, code_review, debugging, research, planning, operations, translation, data_analysis, tool_use, other]
+  task_actions:
+    coding: allow
+    code_review: allow
+    debugging: allow
+    research: review
+    planning: review
+    operations: review
+    translation: allow
+    data_analysis: allow
+    tool_use: review
+    other: reject
+  allowed_models:
+    - {id: gpt-5.6-sol, provider: openai-compatible, aliases: [gpt-5.6, gpt-5-6-sol]}
+    - {id: gpt-6-astra, provider: openai-compatible, aliases: [gpt-6-astra-latest]}
+    - {id: deepseek-4.1f, provider: deepseek-compatible, aliases: [deepseek-chat]}
+  allowed_tools: [python, bash, git, browser, sql, docker]
+  allowed_programming_languages: [Python, JavaScript, TypeScript, Go, Rust, Java, SQL, C++]
+  allowed_technologies: [PyTorch, GLiNER2, PostgreSQL, Docker, Kubernetes, Transformers, PEFT]
+  decision_choices: [PyTorch, GLiNER2, PostgreSQL, Docker, Kubernetes, Transformers, PEFT, Python, JavaScript, TypeScript, Go, Rust, Java, SQL, C++, python, bash, git, browser, docker]
+  decision_actions: [allow, review, reject]
+  min_confidence: 0.75
+  unknown_policy: reject
+  require_evidence: true
+sources:
+  - {name: jevraw_dump_tree, kind: jsonl, location: /home/sansha/data/jevraw, license_note: Operator-owned capture corpus; consumed read-only., max_documents: 1000000}
+mq:
+  enabled: true
+  adapter: dir-spool
+  source_root: runs/jev/feed
+  patterns: ["*.ndjson"]
+  poll_interval_ms: 2000
+  start_position: first
+  batch: 16
+  max_bytes: 67108864
+  ack_wait_seconds: 30
+  max_ack_pending: 16
+  prefetch: 16
+  max_deliver: 3
+  dlq_path: runs/jev/perpetual/dlq.jsonl
+  quarantine_path: runs/jev/perpetual/quarantine.jsonl
+  wal_path: runs/jev/perpetual/wal.bin
+  socket_path: runs/jev/perpetual/bridge.sock
+  bridge_config: runs/jev/perpetual/bridge.json
+  metrics_path: artifacts/mq/metrics.json
+  replay_buffer: runs/jev/perpetual/replay-buffer.jsonl
+  dedup_window: 200000
+  tls_required: true
+  secret_ref: null
+  state_path: runs/jev/perpetual/dir-spool-state.json
+  exit_after_drain: false
+teacher:
+  provider: openai-compatible
+  model: gpt-6-astra
+  base_url: https://api.example.invalid/v1
+  api_key_env: JEV_TEACHER_API_KEY
+  timeout_s: 90
+  temperature: 0
+  max_retries: 2
+  retry_backoff_s: 1.0
+  cache_dir: runs/jev/teacher-cache
+drift:
+  eval_window: 64
+  min_windows: 3
+  loss_ratio: 2.0
+  loss_margin: 0.0
+  ema_norm_ratio: 3.0
+  max_non_finite: 0
+  reset_cooldown_steps: 50
+  f1_absolute_drop: 0.15
+  f1_relative_floor: 0.80
+  validation_loss_ratio: 2.0
+runtime:
+  device: cuda
+  model_path: /home/sansha/jev-model-base
+  inference_max_length: 512
+  lora_r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  ema_decay: 0.999
+  learning_rate: 0.0001
+  grad_clip_norm: 1.0
+  publish_every_steps: 5
+  checkpoint_every_steps: 10
+  max_checkpoints: 5
+  reset_warmup_steps: 2
+  seed: 42

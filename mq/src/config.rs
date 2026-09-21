@@ -76,6 +76,15 @@ pub struct BridgeConfig {
     pub state_path: Option<PathBuf>,
     #[serde(default)]
     pub source_path: Option<PathBuf>,
+    /// Local directory-spool source root (`dir-spool` adapter, §1.7).
+    #[serde(default)]
+    pub source_root: Option<PathBuf>,
+    /// Filename patterns for the directory spool; `*` is a suffix match.
+    #[serde(default)]
+    pub patterns: Vec<String>,
+    /// Idle poll / rescan interval for the directory spool.
+    #[serde(default = "default_poll_interval_ms")]
+    pub poll_interval_ms: u64,
     #[serde(default)]
     pub faults: FaultConfig,
     /// Exit after the client drains and disconnects. Used by smoke/tests.
@@ -117,8 +126,11 @@ fn default_max_deliver() -> u32 {
 fn default_dedup_window() -> usize {
     10_000
 }
+fn default_poll_interval_ms() -> u64 {
+    2000
+}
 
-pub const KNOWN_ADAPTERS: [&str; 4] = ["mock", "nats-jetstream", "kafka", "iggy"];
+pub const KNOWN_ADAPTERS: [&str; 5] = ["mock", "nats-jetstream", "kafka", "iggy", "dir-spool"];
 
 impl BridgeConfig {
     pub fn from_path(path: &std::path::Path) -> Result<Self, String> {
@@ -178,6 +190,21 @@ impl BridgeConfig {
         }
         if self.adapter == "kafka" && self.consumer_group.is_none() {
             return Err("kafka requires consumer_group".to_string());
+        }
+        if self.adapter == "dir-spool" {
+            let root = self
+                .source_root
+                .as_ref()
+                .ok_or_else(|| "dir-spool requires source_root".to_string())?;
+            if !root.is_dir() {
+                return Err(format!(
+                    "dir-spool source_root is not a readable directory: {}",
+                    root.display()
+                ));
+            }
+            if self.poll_interval_ms == 0 {
+                return Err("dir-spool poll_interval_ms must be positive".to_string());
+            }
         }
         Ok(())
     }

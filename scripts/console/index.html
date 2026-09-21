@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ZenJev Live Console</title>
+<style>
+  :root {
+    --bg: #05070d;
+    --panel: #0b101c;
+    --panel-2: #0e1424;
+    --line: #1c2740;
+    --text: #dfe7ff;
+    --muted: #7d8bb0;
+    --cyan: #4de3ff;
+    --violet: #a78bfa;
+    --green: #4ade80;
+    --amber: #fbbf24;
+    --red: #fb7185;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background:
+      radial-gradient(1200px 600px at 15% -10%, #12203c 0%, transparent 60%),
+      radial-gradient(900px 500px at 95% 0%, #231247 0%, transparent 55%),
+      var(--bg);
+    color: var(--text); font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    min-height: 100vh;
+  }
+  header {
+    display: flex; align-items: center; gap: 14px; padding: 14px 20px;
+    border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5;
+    background: linear-gradient(180deg, rgba(6,9,17,.96), rgba(6,9,17,.82));
+    backdrop-filter: blur(6px);
+  }
+  header h1 { font-size: 16px; margin: 0; letter-spacing: .14em; text-transform: uppercase; }
+  header h1 span { color: var(--cyan); text-shadow: 0 0 18px rgba(77,227,255,.55); }
+  .pill { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; color: var(--muted); font-size: 11px; }
+  .pill.ok { color: var(--green); border-color: rgba(74,222,128,.4); }
+  .pill.warn { color: var(--amber); border-color: rgba(251,191,36,.4); }
+  .pill.bad { color: var(--red); border-color: rgba(251,113,133,.45); }
+  main { padding: 16px 20px 60px; display: grid; gap: 14px; }
+  .grid { display: grid; gap: 14px; }
+  .counters { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  .card {
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+    position: relative; overflow: hidden;
+  }
+  .card::after {
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(77,227,255,.45), transparent);
+  }
+  .label { color: var(--muted); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+  .value { font-size: 30px; font-weight: 700; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .value.small { font-size: 18px; }
+  .sub { color: var(--muted); font-size: 11px; margin-top: 4px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .gen-wrap { display: flex; align-items: center; gap: 12px; }
+  canvas { display: block; }
+  .charts { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .chart-title { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 6px; }
+  .feed { max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
+  .task {
+    border: 1px solid var(--line); border-left: 3px solid var(--violet);
+    border-radius: 8px; padding: 8px 10px; background: rgba(14,20,36,.75);
+    animation: rise .35s ease-out;
+  }
+  .task.synthetic { border-left-color: var(--amber); }
+  .task.allow { border-left-color: var(--green); }
+  .task.review { border-left-color: var(--amber); }
+  .task.reject { border-left-color: var(--red); }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .task .meta { display: flex; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 11px; }
+  .task .req { margin-top: 5px; white-space: pre-wrap; word-break: break-word; }
+  .task .choices { margin-top: 4px; color: var(--cyan); font-size: 11px; }
+  .chip { border-radius: 999px; padding: 1px 8px; font-size: 10px; border: 1px solid var(--line); color: var(--muted); }
+  .chip.allow { color: #052e16; background: var(--green); border-color: transparent; font-weight: 700; }
+  .chip.review { color: #3a2400; background: var(--amber); border-color: transparent; font-weight: 700; }
+  .chip.reject { color: #3f0a12; background: var(--red); border-color: transparent; font-weight: 700; }
+  .chip.synth { color: #3a2400; border-color: rgba(251,191,36,.5); }
+  .chip.train { color: var(--cyan); border-color: rgba(77,227,255,.5); }
+  .stages { display: flex; flex-wrap: wrap; gap: 6px; }
+  .stage { flex: 1 1 130px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: rgba(11,16,28,.7); }
+  .stage b { display: block; font-size: 18px; margin-top: 2px; }
+  textarea {
+    width: 100%; min-height: 64px; resize: vertical; background: #070b14; color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit;
+  }
+  button {
+    background: linear-gradient(180deg, #123, #0b1626); color: var(--cyan);
+    border: 1px solid rgba(77,227,255,.45); border-radius: 8px; padding: 7px 14px; cursor: pointer; font: inherit;
+  }
+  button:hover { box-shadow: 0 0 14px rgba(77,227,255,.25); }
+  pre { background: #070b14; border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow: auto; max-height: 240px; }
+  .muted { color: var(--muted); }
+  .ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); }
+  .split { display: grid; gap: 14px; grid-template-columns: 2fr 1fr; }
+  @media (max-width: 980px) { .split { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Zen<span>Jev</span> Live Console</h1>
+  <span class="pill" id="sse-pill">SSE connecting…</span>
+  <span class="pill" id="clock">--:--:--</span>
+  <span class="pill" id="uptime">uptime —</span>
+  <span style="flex:1"></span>
+  <span class="muted" id="gen-since"></span>
+</header>
+<main>
+  <section class="grid counters">
+    <div class="card gen-wrap">
+      <canvas id="ring" width="86" height="86"></canvas>
+      <div>
+        <div class="label">LoRA Generations</div>
+        <div class="value" id="generation">—</div>
+        <div class="sub" id="generation-sub">no publish yet</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">Training Data Consumed</div>
+      <div class="value" id="records" style="color:var(--cyan)">—</div>
+      <div class="sub" id="records-sub">real records extracted</div>
+    </div>
+    <div class="card">
+      <div class="label">Training Examples</div>
+      <div class="value" id="examples" style="color:var(--violet)">—</div>
+      <div class="sub" id="examples-sub">RSI self-labelled, admitted</div>
+    </div>
+    <div class="card">
+      <div class="label">Uptime (loop)</div>
+      <div class="value" id="uptime-big" style="color:var(--green)">—</div>
+      <div class="sub" id="uptime-sub">services below</div>
+    </div>
+    <div class="card">
+      <div class="label">Synthetic Canaries</div>
+      <div class="value" id="synthetic" style="color:var(--amber)">—</div>
+      <div class="sub">fabricator, never trained</div>
+    </div>
+  </section>
+
+  <section class="grid charts">
+    <div class="card"><div class="chart-title"><span>Throughput · records/min</span><span id="rate-now"></span></div><canvas id="chart-rate" width="560" height="90"></canvas></div>
+    <div class="card"><div class="chart-title"><span>Inference latency · p95 ms</span><span id="lat-now"></span></div><canvas id="chart-lat" width="560" height="90"></canvas></div>
+    <div class="card"><div class="chart-title"><span>Training loss</span><span id="loss-now"></span></div><canvas id="chart-loss" width="560" height="90"></canvas></div>
+  </section>
+
+  <section class="grid" style="grid-template-columns: repeat(auto-fit,minmax(280px,1fr))">
+    <div class="card">
+      <div class="label">Pipeline stages</div>
+      <div class="stages" style="margin-top:8px">
+        <div class="stage"><span class="muted">ingest · accepted</span><b id="st-ingest">—</b></div>
+        <div class="stage"><span class="muted">extract · calls</span><b id="st-extract">—</b></div>
+        <div class="stage"><span class="muted">decide · allow</span><b id="st-allow" class="ok">—</b></div>
+        <div class="stage"><span class="muted">decide · review / reject</span><b><span id="st-review" class="warn">—</span> / <span id="st-reject" class="bad">—</span></b></div>
+        <div class="stage"><span class="muted">train · steps</span><b id="st-steps">—</b></div>
+        <div class="stage"><span class="muted">publish · EMA step</span><b id="st-ema">—</b></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">MQ bridge · dir-spool</div>
+      <div class="row" style="margin-top:8px">
+        <span class="chip" id="mq-state">state —</span>
+        <span class="chip">lag <b id="mq-lag">—</b></span>
+        <span class="chip">inflight <b id="mq-inflight">—</b></span>
+        <span class="chip">credits <b id="mq-credits">—</b></span>
+        <span class="chip">acked <b id="mq-acked">—</b></span>
+        <span class="chip">dlq <b id="mq-dlq">—</b></span>
+        <span class="chip">quarantine <b id="mq-quar">—</b></span>
+        <span class="chip">dedup <b id="mq-dedup">—</b></span>
+      </div>
+      <div class="sub" id="mq-error"></div>
+    </div>
+    <div class="card">
+      <div class="label">Health</div>
+      <div class="row" style="margin-top:8px">
+        <span class="chip">vram <b id="vram">—</b></span>
+        <span class="chip">p50 <b id="p50">—</b></span>
+        <span class="chip">p95 <b id="p95">—</b></span>
+        <span class="chip">loss <b id="loss">—</b></span>
+        <span class="chip">reset_id <b id="resets">—</b></span>
+        <span class="chip">feed gaps <b id="gaps">—</b></span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">Services</div>
+      <div id="services" class="row" style="margin-top:8px"></div>
+    </div>
+  </section>
+
+  <section class="split">
+    <div class="card">
+      <div class="chart-title">
+        <span>Live task feed · instruct + prompt → schema</span>
+        <span class="row">
+          <button id="pause">pause scroll</button>
+          <span class="chip" data-filter="all" role="button">all</span>
+          <span class="chip" data-filter="real" role="button">real</span>
+          <span class="chip" data-filter="synthetic" role="button">synthetic</span>
+          <span class="chip" data-filter="allow" role="button">allow</span>
+          <span class="chip" data-filter="review" role="button">review</span>
+          <span class="chip" data-filter="reject" role="button">reject</span>
+        </span>
+      </div>
+      <div class="feed" id="feed"></div>
+    </div>
+    <div class="card">
+      <div class="chart-title"><span>Probe the live model</span><span class="muted">EMA snapshot · read-only</span></div>
+      <textarea id="probe-text">用 Python 和 GLiNER2 准备 2026 技术栈，并用 PyTorch 训练。</textarea>
+      <div class="row" style="margin-top:8px">
+        <button id="probe">extract</button>
+        <span class="muted" id="probe-status"></span>
+      </div>
+      <pre id="probe-out">—</pre>
+      <div class="chart-title" style="margin-top:10px"><span>Generation ledger</span></div>
+      <div id="ledger" class="muted">—</div>
+    </div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const history = { rate: [], lat: [], loss: [] };
+let paused = false, filter = "all", lastGen = -1, pulse = 0, lastSeq = 0;
+const feed = $("feed");
+
+function fmt(n) { return n === null || n === undefined ? "—" : Number(n).toLocaleString(); }
+function fmtDuration(s) {
+  if (s === null || s === undefined) return "—";
+  s = Math.max(0, Math.floor(s));
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+  return d > 0 ? `${d}d ${h}h ${m}m` : (h > 0 ? `${h}h ${m}m` : `${m}m ${s % 60}s`);
+}
+function classify(service) {
+  const state = (service || {}).state;
+  if (state === "running") return "ok";
+  if (state === "degraded") return "warn";
+  return "bad";
+}
+
+function drawLine(canvas, values, color, fill) {
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.strokeStyle = "rgba(28,39,64,.9)"; ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) { const y = (h / 4) * i; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+  const data = values.filter((v) => typeof v === "number" && isFinite(v));
+  if (data.length < 2) return;
+  const min = Math.min(...data), max = Math.max(...data), span = (max - min) || 1;
+  const x = (i) => (i / (data.length - 1)) * (w - 4) + 2;
+  const y = (v) => h - 6 - ((v - min) / span) * (h - 14);
+  if (fill) {
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, color + "55"); grad.addColorStop(1, color + "00");
+    ctx.beginPath(); ctx.moveTo(x(0), h);
+    data.forEach((v, i) => ctx.lineTo(x(i), y(v)));
+    ctx.lineTo(x(data.length - 1), h); ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+  }
+  ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 2;
+  data.forEach((v, i) => (i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v))));
+  ctx.stroke();
+}
+
+function drawRing(count) {
+  const c = $("ring"), ctx = c.getContext("2d");
+  const w = c.width, h = c.height, cx = w / 2, cy = h / 2, r = 33;
+  ctx.clearRect(0, 0, w, h);
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(77,227,255,.18)"; ctx.lineWidth = 7; ctx.stroke();
+  const turns = (count % 12) / 12 + (pulse > 0 ? 0.08 : 0);
+  ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + turns * Math.PI * 2);
+  ctx.strokeStyle = pulse > 0 ? "#a78bfa" : "#4de3ff"; ctx.lineWidth = 7;
+  ctx.shadowBlur = pulse > 0 ? 22 : 10; ctx.shadowColor = ctx.strokeStyle; ctx.stroke(); ctx.shadowBlur = 0;
+  ctx.fillStyle = "#dfe7ff"; ctx.font = "700 20px ui-monospace, monospace";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(count), cx, cy);
+}
+
+function taskCard(event) {
+  const node = document.createElement("div");
+  const action = String(event.action || "review");
+  node.className = "task " + action + (event.synthetic ? " synthetic" : "");
+  const chips = [
+    `<span class="chip ${action}">${action}</span>`,
+    event.synthetic ? `<span class="chip synth">synthetic${event.canary ? " · canary" : ""}</span>` : `<span class="chip">real</span>`,
+    event.trained ? `<span class="chip train">trained</span>` : "",
+    `<span class="chip">${(event.model || "?").slice(0, 28)}</span>`,
+    `<span class="chip">${event.latency_ms ?? "—"} ms</span>`,
+    `<span class="chip">gen ${event.generation ?? "—"}</span>`,
+  ].join(" ");
+  const choices = (event.choices || []).map((c) => {
+    const label = c.choice ?? c.label ?? JSON.stringify(c);
+    const prob = c.probability ?? c.confidence;
+    return prob === undefined ? label : `${label} ${(Number(prob) * 100).toFixed(0)}%`;
+  }).join(" · ");
+  node.innerHTML = `
+    <div class="meta">${chips}<span>${event.ts || ""}</span></div>
+    <div class="req">${escapeHtml(event.request_preview || "")}</div>
+    ${choices ? `<div class="choices">→ ${escapeHtml(choices)}</div>` : ""}
+    ${event.reasons && event.reasons.length ? `<div class="muted" style="font-size:11px;margin-top:3px">${escapeHtml(event.reasons.join(", "))}</div>` : ""}
+  `;
+  return node;
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+function matchesFilter(event) {
+  if (filter === "all") return true;
+  if (filter === "real") return !event.synthetic;
+  if (filter === "synthetic") return !!event.synthetic;
+  return event.action === filter;
+}
+
+function hideFeed() { Array.from(feed.children).forEach((child) => child.remove()); }
+
+function render(events) {
+  const nearBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 80;
+  events.forEach((event) => {
+    if (event.kind === "generation") {
+      const row = document.createElement("div");
+      row.className = "task";
+      row.style.borderLeftColor = "var(--cyan)";
+      row.innerHTML = `<div class="meta"><span class="chip train">publish</span>
+        <span class="chip">generation ${event.generation_id}</span>
+        <span class="chip">steps ${event.training_steps ?? "—"}</span>
+        <span class="chip">reset ${event.reset_id ?? 0}</span>
+        <span>${event.ts}</span></div>
+        <div class="req">adapter ${escapeHtml((event.adapter_digest || "pending").slice(0, 24))} · loss ${event.loss ?? "—"}</div>`;
+      feed.appendChild(row);
+      return;
+    }
+    if (event.kind !== "task") return;
+    if (!matchesFilter(event)) return;
+    feed.appendChild(taskCard(event));
+  });
+  while (feed.children.length > 240) feed.removeChild(feed.firstChild);
+  if (!paused && nearBottom) feed.scrollTop = feed.scrollHeight;
+}
+
+function applySnapshot(body) {
+  const counters = body.counters || {};
+  const loop = body.loop || {};
+  const generation = body.generation || {};
+  $("generation").textContent = fmt(generation.count);
+  const latest = generation.latest || {};
+  $("generation-sub").textContent = latest.generation_id
+    ? `latest gen ${latest.generation_id} · steps ${fmt(latest.training_steps)} · reset ${latest.reset_id ?? 0}`
+    : "no publish yet";
+  $("gen-since").textContent = generation.since ? `generations since ${generation.since}` : "";
+  if (lastGen !== -1 && generation.count > lastGen) { pulse = 6; }
+  lastGen = generation.count;
+  drawRing(generation.count || 0);
+
+  $("records").textContent = fmt(counters.real_pairs);
+  $("examples").textContent = fmt(counters.training_examples);
+  $("synthetic").textContent = fmt(counters.synthetic_pairs);
+  $("uptime-big").textContent = fmtDuration(loop.uptime_seconds);
+  $("uptime-sub").textContent = loop.state ? `state ${loop.state}` : "no heartbeat";
+  $("uptime").textContent = "uptime " + fmtDuration(loop.uptime_seconds);
+
+  $("st-ingest").textContent = fmt(counters.real_pairs);
+  $("st-extract").textContent = fmt(loop.training_steps !== undefined ? (counters.real_pairs || 0) : "—");
+  $("st-allow").textContent = fmt(counters.decision_allow);
+  $("st-review").textContent = fmt(counters.decision_review);
+  $("st-reject").textContent = fmt(counters.decision_reject);
+  $("st-steps").textContent = fmt(loop.training_steps);
+  $("st-ema").textContent = fmt(loop.ema_step);
+
+  const bridge = loop.bridge || {};
+  const mqState = $("mq-state");
+  mqState.textContent = "state " + (loop.bridge_alive ? "live" : "down");
+  mqState.className = "chip " + (loop.bridge_alive ? "ok" : "bad");
+  $("mq-lag").textContent = fmt(bridge.consumer_lag);
+  $("mq-inflight").textContent = fmt(bridge.inflight);
+  $("mq-credits").textContent = fmt(bridge.credits);
+  $("mq-acked").textContent = fmt(bridge.acked);
+  $("mq-dlq").textContent = fmt(bridge.dlq);
+  $("mq-quar").textContent = fmt(bridge.quarantined);
+  $("mq-dedup").textContent = fmt(bridge.duplicates_suppressed);
+  $("mq-error").textContent = bridge.last_error_class ? "last error: " + bridge.last_error_class : "";
+
+  const vram = loop.vram || {};
+  $("vram").textContent = vram.allocated_mb !== undefined ? `${vram.allocated_mb} MB` : "—";
+  $("p50").textContent = fmt(loop.latency_p50_ms) + " ms";
+  $("p95").textContent = fmt(loop.latency_p95_ms) + " ms";
+  $("loss").textContent = loop.loss === null || loop.loss === undefined ? "—" : Number(loop.loss).toFixed(4);
+  $("resets").textContent = fmt(loop.reset_id);
+  $("gaps").textContent = fmt(loop.seconds_since_last_record) + " s";
+
+  history.rate.push(loop.records_per_minute); history.lat.push(loop.latency_p95_ms); history.loss.push(loop.loss);
+  Object.keys(history).forEach((key) => { if (history[key].length > 180) history[key].shift(); });
+  $("rate-now").textContent = fmt(loop.records_per_minute) + " /min";
+  $("lat-now").textContent = fmt(loop.latency_p95_ms) + " ms";
+  $("loss-now").textContent = loop.loss === null || loop.loss === undefined ? "—" : Number(loop.loss).toFixed(4);
+  drawLine($("chart-rate"), history.rate, "#4de3ff", true);
+  drawLine($("chart-lat"), history.lat, "#a78bfa", true);
+  drawLine($("chart-loss"), history.loss, "#4ade80", true);
+
+  const services = body.services || {};
+  $("services").innerHTML = Object.entries(services).map(([name, service]) => {
+    const kind = classify(service);
+    const uptime = service.uptime_seconds !== undefined ? fmtDuration(service.uptime_seconds) : (service.state || "missing");
+    return `<span class="chip ${kind}">${name} · ${uptime}</span>`;
+  }).join(" ");
+
+  const ledger = $("ledger");
+  const rows = (body.ledger_tail || []).slice(-6).reverse();
+  ledger.innerHTML = rows.length ? rows.map((row) =>
+    `<div>gen ${row.generation_id} · steps ${row.training_steps} · ema ${row.ema_step} · loss ${row.loss === null || row.loss === undefined ? "—" : Number(row.loss).toFixed(4)} · ${row.created_at}</div>`
+  ).join("") : "no generations yet";
+}
+
+function connect() {
+  const source = new EventSource("/events");
+  const pill = $("sse-pill");
+  source.onopen = () => { pill.textContent = "SSE live"; pill.className = "pill ok"; };
+  source.onerror = () => { pill.textContent = "SSE reconnecting…"; pill.className = "pill warn"; };
+  source.onmessage = (message) => {
+    let payload;
+    try { payload = JSON.parse(message.data); } catch { return; }
+    applySnapshot(payload.snapshot || {});
+    if (Array.isArray(payload.events)) {
+      const fresh = payload.events.filter((event) => (event.seq || 0) > lastSeq);
+      if (fresh.length) { lastSeq = Math.max(...fresh.map((event) => event.seq || 0)); render(fresh); }
+    }
+  };
+}
+
+document.querySelectorAll(".chip[data-filter]").forEach((node) => {
+  node.addEventListener("click", () => { filter = node.dataset.filter; hideFeed(); lastSeq = 0; });
+});
+$("pause").addEventListener("click", (event) => {
+  paused = !paused;
+  event.target.textContent = paused ? "resume scroll" : "pause scroll";
+});
+$("probe").addEventListener("click", async () => {
+  const text = $("probe-text").value.trim();
+  if (!text) return;
+  $("probe-status").textContent = "running…";
+  try {
+    const response = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+    const body = await response.json();
+    $("probe-status").textContent = response.ok ? `gen ${body.generation} · ema ${body.ema_step}` : "error";
+    $("probe-out").textContent = JSON.stringify(body.output ?? body, null, 2);
+  } catch (error) {
+    $("probe-status").textContent = String(error);
+  }
+});
+setInterval(() => { $("clock").textContent = new Date().toISOString().slice(11, 19) + " UTC"; }, 1000);
+setInterval(() => { if (pulse > 0) { pulse -= 1; drawRing(lastGen || 0); } }, 220);
+connect();
+</script>
+</body>
+</html>

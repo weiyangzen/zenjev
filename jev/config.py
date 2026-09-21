@@ -4,7 +4,7 @@ import hashlib
 import json
 import os
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -276,7 +276,7 @@ class ToolTaskPolicy:
         }
 
 
-MQ_ADAPTERS = ("nats-jetstream", "kafka", "iggy", "mock")
+MQ_ADAPTERS = ("nats-jetstream", "kafka", "iggy", "dir-spool", "mock")
 MQ_START_POSITIONS = ("new", "first", "last", "by_offset", "by_timestamp")
 
 
@@ -325,6 +325,11 @@ class MqConfig:
     secret_ref: str | None = None
     source_path: str | None = None
     state_path: str | None = None
+    # Local directory spool (`dir-spool` adapter, §1.7): a perpetual,
+    # byte-offset-watermarked NDJSON source that needs no broker.
+    source_root: str | None = None
+    patterns: tuple[str, ...] = ("*.ndjson",)
+    poll_interval_ms: int = 2000
     exit_after_drain: bool = False
 
     @classmethod
@@ -334,6 +339,8 @@ class MqConfig:
         if not isinstance(value, dict):
             raise ConfigError("mq must be an object")
         out = cls(**{key: value[key] for key in value if key in cls.__dataclass_fields__})
+        if isinstance(out.patterns, list):
+            out = replace(out, patterns=tuple(out.patterns))
         if out.adapter not in MQ_ADAPTERS:
             raise ConfigError(f"mq.adapter must be one of {MQ_ADAPTERS}")
         if out.start_position not in MQ_START_POSITIONS:
@@ -350,6 +357,7 @@ class MqConfig:
             "prefetch": out.prefetch,
             "max_deliver": out.max_deliver,
             "dedup_window": out.dedup_window,
+            "poll_interval_ms": out.poll_interval_ms,
         }
         if any(number <= 0 for number in positive.values()):
             raise ConfigError("mq batch/max_bytes/ack_wait/max_ack_pending/prefetch/max_deliver/dedup_window must be positive")
@@ -367,6 +375,11 @@ class MqConfig:
         if out.adapter == "mock":
             if not out.source_path:
                 raise ConfigError("mq.adapter=mock requires source_path (test/smoke use only)")
+        elif out.adapter == "dir-spool":
+            if not out.source_root:
+                raise ConfigError("mq.adapter=dir-spool requires source_root")
+            if not out.patterns:
+                raise ConfigError("mq.adapter=dir-spool requires at least one pattern")
         else:
             if not out.endpoints:
                 raise ConfigError(f"mq.adapter={out.adapter} requires at least one endpoint")
@@ -401,6 +414,9 @@ class MqConfig:
             "secret_ref": self.secret_ref,
             "dedup_window": self.dedup_window,
             "loop": self.loop,
+            "source_root": self.source_root,
+            "patterns": list(self.patterns),
+            "poll_interval_ms": self.poll_interval_ms,
             "max_cycles": self.max_cycles,
         }
 
