@@ -38,7 +38,7 @@ MQ_METRICS = REPO / "artifacts/mq/metrics.json"
 STATIC_DIR = pathlib.Path(__file__).resolve().parent / "console"
 SERVICES = ("loop", "feeder", "fabricator", "serve", "deploy", "console")
 SNAPSHOT_EVENTS = 40
-DELTA_EVENTS = 60
+DELTA_EVENTS = 400
 LEDGER_ROWS = 24
 SERVE_HEALTH = "http://127.0.0.1:8791/health"
 LOOP_HEALTH = "http://127.0.0.1:8788/health"
@@ -74,6 +74,24 @@ def with_ages(heartbeats: dict[str, Any]) -> dict[str, Any]:
         if service.get("state") == "running" and (age is None or age > 30.0):
             service["state"] = "stale"
     return heartbeats
+
+
+def decision_mix_window(events: list[dict[str, Any]], window: int = 100) -> dict[str, Any]:
+    """Mix over the same event tail the feed renders, so the two agree."""
+    tasks = [event for event in events if event.get("kind") == "task"][-window:]
+    allow = sum(1 for event in tasks if event.get("action") == "allow")
+    review = sum(1 for event in tasks if event.get("action") == "review")
+    reject = sum(1 for event in tasks if event.get("action") == "reject")
+    total = allow + review + reject
+    if not total:
+        return {"allow": 0, "review": 0, "reject": 0, "total": 0, "window": window}
+    return {
+        "allow": round(100.0 * allow / total, 1),
+        "review": round(100.0 * review / total, 1),
+        "reject": round(100.0 * reject / total, 1),
+        "total": total,
+        "window": window,
+    }
 
 
 def decision_mix(counters: dict[str, Any]) -> dict[str, Any]:
@@ -159,6 +177,7 @@ def snapshot() -> dict[str, Any]:
     body["deploy_tail"] = tail_jsonl(DEPLOYS_PATH, 8)
     body["events"] = tail_jsonl(EVENTS_PATH, SNAPSHOT_EVENTS)
     body["event_seq"] = body["events"][-1]["seq"] if body["events"] else 0
+    body["decision_mix_feed100"] = decision_mix_window(body["events"], 100)
     return body
 
 

@@ -60,7 +60,16 @@
   canvas { display: block; }
   .charts { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
   .chart-title { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 6px; }
-  .feed { max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
+  .feed {
+    max-height: clamp(560px, 72vh, 1600px);
+    min-height: 420px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 4px;
+    overscroll-behavior: contain;
+  }
   .task {
     border: 1px solid var(--line); border-left: 3px solid var(--violet);
     border-radius: 8px; padding: 8px 10px; background: rgba(14,20,36,.75);
@@ -95,8 +104,9 @@
   pre { background: #070b14; border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow: auto; max-height: 240px; }
   .muted { color: var(--muted); }
   .ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); }
-  .split { display: grid; gap: 14px; grid-template-columns: 2fr 1fr; }
-  @media (max-width: 980px) { .split { grid-template-columns: 1fr; } }
+  .split { display: grid; gap: 14px; grid-template-columns: minmax(0, 2.4fr) minmax(320px, 1fr); align-items: start; }
+  @media (max-width: 980px) { .split { grid-template-columns: 1fr; } .feed { max-height: 80vh; } }
+  @media (min-width: 1600px) { .feed { max-height: 78vh; } }
 </style>
 </head>
 <body>
@@ -466,9 +476,13 @@ function applyMeta(body) {
     ? `inference serving gen ${served} · instruction ${body.instruction_sha16 || "—"}`
     : (body.instruction_sha16 ? `distilling with instruction ${body.instruction_sha16}` : "no deploy yet");
   const mix = body.decision_mix || {};
-  if (mix.total) {
-    $("decision-mix").textContent = `mix allow ${mix.allow}% · review ${mix.review}% · reject ${mix.reject}% (${fmt(mix.total)})`;
-    $("decision-mix").className = "chip " + (mix.reject > 50 ? "bad" : (mix.allow >= 40 ? "ok" : "warn"));
+  const feedMix = body.decision_mix_feed100 || {};
+  if (mix.total || feedMix.total) {
+    const part = (label, m, n) => (m.total ? `${label} allow ${m.allow}% · review ${m.review}% · reject ${m.reject}% (n=${fmt(n ?? m.total)})` : "");
+    const feedPart = feedMix.total ? `feed(100) allow ${feedMix.allow}% · review ${feedMix.review}% · reject ${feedMix.reject}%` : "";
+    const sessionPart = mix.total ? `session allow ${mix.allow}% · review ${mix.review}% · reject ${mix.reject}% (${fmt(mix.total)})` : "";
+    $("decision-mix").textContent = [feedPart, sessionPart].filter(Boolean).join("  |  ");
+    $("decision-mix").className = "chip " + ((feedMix.reject ?? mix.reject ?? 0) > 50 ? "bad" : ((feedMix.allow ?? mix.allow ?? 0) >= 40 ? "ok" : "warn"));
   }
   const cursor = (body.feeder || {}).cursor || {};
   if (cursor.files_total) {

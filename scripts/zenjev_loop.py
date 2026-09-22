@@ -177,6 +177,8 @@ def shape_pair_target(
                 chosen = [ranked[0][0]]
         elif isinstance(payload.get("label"), str):
             chosen = [payload["label"]]
+        elif isinstance(payload.get("label"), list):
+            chosen = [str(item) for item in payload["label"]][:3]
         if chosen:
             classifications.append({"task": task, "labels": list(labels), "true_label": chosen})
     target: dict[str, Any] = {"entities": entities, "classifications": classifications}
@@ -201,6 +203,8 @@ class Runtime:
         self.publish_records = max(1, int(os.environ.get("ZENJEV_PUBLISH_RECORDS", "10000")))
         self.records_at_last_publish = 0
         self.batch_buffer: list[tuple[str, dict[str, Any]]] = []
+        self.recent_inputs: set[str] = set()
+        self.recent_input_queue: collections.deque[str] = collections.deque(maxlen=200_000)
         if self.admission not in ("inference_only", "canary_scored", "training_admitted"):
             raise SystemExit("invalid ZENJEV_FABRICATOR_ADMISSION")
         self.resolve_tool_task = resolve_tool_task
@@ -450,16 +454,27 @@ class Runtime:
         if self.config.tool_task is None:
             return False
         instructed = f"{INSTRUCTION}\n\n{request_text}"[:1600]
-        try:
-            judgment = self._judge(instructed[:JUDGE_CHARS])
-        except Exception:
-            self.counters["judge_failed"] += 1
-            return False
+        # The panel, the served model and the training target must share one
+        # inference path: labels come from the extraction head that produced
+        # `output`, never from a second classifier that can drift away.
+        judgment = {
+            task: output[task]
+            for task in ("task_type", "decision_choice")
+            if isinstance(output.get(task), dict)
+        }
 
         target = shape_pair_target(self.config, judgment, output)
         if not target["entities"] and not target["classifications"]:
             self.counters["pair_empty"] += 1
             return False
+        digest = sha256_hex(instructed)
+        if digest in self.recent_inputs:
+            self.counters["pair_duplicate_skipped"] += 1
+            return False
+        if len(self.recent_input_queue) == self.recent_input_queue.maxlen:
+            self.recent_inputs.discard(self.recent_input_queue[0])
+        self.recent_input_queue.append(digest)
+        self.recent_inputs.add(digest)
         pair = {"input": instructed, "output": target}
         self.counters["pairs_built"] += 1
         self._append_pair(pair, request_text)
