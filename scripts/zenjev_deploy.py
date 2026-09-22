@@ -178,6 +178,9 @@ def main() -> int:
         else:
             loaded = int(state.get("generation") or 0)
             target = int(candidate.get("generation_id") or 0)
+            loaded_digest = str(state.get("checkpoint_sha256_16") or "")
+            target_digest = str(candidate.get("adapter_digest") or "")[:16]
+            digest_differs = bool(target_digest) and target_digest != loaded_digest
             age = None
             created = candidate.get("created_at")
             if isinstance(created, str):
@@ -186,7 +189,7 @@ def main() -> int:
                         + time.localtime().tm_gmtoff
                 except ValueError:
                     age = None
-            if target <= loaded:
+            if target <= loaded and not digest_differs:
                 decision = "up_to_date"
             elif not args.force and age is not None and age < args.quiet_seconds:
                 decision = "waiting_for_stable_checkpoint"

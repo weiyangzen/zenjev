@@ -197,6 +197,7 @@
         <span class="chip">batch <b id="train-batch">—</b></span>
         <span class="chip">filtered <b id="filtered">—</b></span>
         <span class="chip">pairs <b id="pairs">—</b></span>
+        <span class="chip" id="rec-per-gen">rec/gen —</span>
         <span class="chip" id="decision-mix">mix —</span>
       </div>
       <div class="sub" id="cursor-sub">corpus cursor —</div>
@@ -458,6 +459,9 @@ function applyMeta(body) {
   $("train-batch").textContent = fmt(body.train_batch);
   $("filtered").textContent = fmt(body.skipped_bad_capture);
   $("pairs").textContent = fmt(body.pairs_built);
+  if (body.records_per_generation) {
+    $("rec-per-gen").textContent = `rec/gen ${fmt(body.records_per_generation)} (target 10000)`;
+  }
   $("generation-sub").textContent = served
     ? `inference serving gen ${served} · instruction ${body.instruction_sha16 || "—"}`
     : (body.instruction_sha16 ? `distilling with instruction ${body.instruction_sha16}` : "no deploy yet");

@@ -4,9 +4,9 @@ Generated read-only projection. The sole authority is [stage0_zenjev_blueprint.m
 No implementation acceptance is implied by generating this file.
 
 **Source blueprint:** `Docs/stage0_zenjev_blueprint.md`
-**Source SHA-256:** `b3da2a6c30359083e617b012134a9527fd5b9533097178119e355948f316eacd`
-**Specification SHA-256:** `7d570930847fc149df13738063837df3fe3b4fe20db1cec55bbe49327cc53508`
-**Generated at (UTC):** `2026-09-21T11:13:56Z`
+**Source SHA-256:** `5a7526da183302ff43b5b1e5c6c00434e3b24b86a0b4e776cf069a16d8056dc6`
+**Specification SHA-256:** `1c4b47923dba06a15ccd14d7264ed64085ddfc335fce798d34f3be96ed8a08f1`
+**Generated at (UTC):** `2026-09-22T06:01:46Z`
 **Generation command:** `python3 scripts/validate_blueprint.py --generate`
 **Check command:** `python3 scripts/validate_blueprint.py --check`
 
@@ -14,8 +14,8 @@ No implementation acceptance is implied by generating this file.
 
 | Surface | Value |
 |---|---|
-| Checklist items | 60 |
-| Todo / self-tested / Master-accepted | 0 / 0 / 60 |
+| Checklist items | 62 |
+| Todo / self-tested / Master-accepted | 0 / 0 / 62 |
 | Controller | disabled; operator concurrency/lifecycle/route unresolved |
 | Logical claims / service records / admitted executions | not applicable; no controller ledger |
 | Startup reservations / live transports / authenticated goals / running turns | not applicable; no controller ledger |
@@ -102,6 +102,8 @@ The validation-preparation frontier consists of unfinished items; it authorizes 
 | ZJ-077 | accepted | ZJ-035,ZJ-028 | Schema worker | `jev/tool_task.py`, `configs/zenjev_perpetual.yaml`, `tests/test_perpetual.py` | unclaimed / none | complete | complete | not applicable (controller disabled) | none from DAG | Unscheduled | G9 |
 | ZJ-078 | accepted | ZJ-063,ZJ-069 | Runtime worker | `scripts/zenjev_lib.py`, `scripts/zenjev_feeder.py`, `scripts/zenjev_console.py`, `scripts/console/` | unclaimed / none | complete | complete | not applicable (controller disabled) | none from DAG | Unscheduled | G13,G15 |
 | ZJ-079 | accepted | ZJ-021,ZJ-066 | Training worker | `jev/training.py`, `scripts/zenjev_loop.py`, `tests/test_perpetual.py` | unclaimed / none | complete | complete | not applicable (controller disabled) | none from DAG | Unscheduled | G14 |
+| ZJ-081 | accepted | ZJ-066,ZJ-074 | Training worker | `scripts/zenjev_loop.py`, `scripts/zenjev_epoch.py`, `tests/test_perpetual.py` | unclaimed / none | complete | complete | not applicable (controller disabled) | none from DAG | Unscheduled | G14 |
+| ZJ-082 | accepted | ZJ-080 | Evaluation worker | `scripts/zenjev_answer_check.py`, `artifacts/perpetual/` | unclaimed / none | complete | complete | not applicable (controller disabled) | none from DAG | Unscheduled | G14 |
 | ZJ-080 | accepted | ZJ-035,ZJ-079 | Distillation worker | `scripts/zenjev_loop.py`, `runs/jev/perpetual/pairs.jsonl`, `tests/test_perpetual.py` | unclaimed / none | complete | complete | not applicable (controller disabled) | none from DAG | Unscheduled | G14 |
 | ZJ-076 | accepted | ZJ-011,ZJ-063 | Data worker | `scripts/zenjev_feeder.py`, `tests/test_perpetual.py` | unclaimed / none | complete | complete | not applicable (controller disabled) | none from DAG | Unscheduled | G13 |
 | ZJ-072 | accepted | ZJ-065,ZJ-067,ZJ-069,ZJ-070 | Docs worker | `jev/cli.py`, `scripts/zenjev_services.sh`, `Docs/runbooks/perpetual_operations.md`, `README.md`, `tests/test_perpetual.py` | unclaimed / none | complete | complete | not applicable (controller disabled) | none from DAG | Unscheduled | G12,G15 |

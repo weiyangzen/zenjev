@@ -139,6 +139,11 @@ def meta_block() -> dict[str, Any]:
             "queue_path": (heartbeats.get("feeder") or {}).get("queue_path"),
         },
         "decision_mix": decision_mix(loop.get("counters") or {}),
+        "records_per_generation": round(
+            (loop.get("counters") or {}).get("real_pairs", 0)
+            / max(1, (loop.get("generation") or 1)),
+            1,
+        ),
         "fabricator": {
             "uptime_seconds": (heartbeats.get("fabricator") or {}).get("uptime_seconds"),
             "emitted_total": (heartbeats.get("fabricator") or {}).get("emitted_total"),

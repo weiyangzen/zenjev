@@ -99,9 +99,15 @@ teacher:
   retry_backoff_s: 1.0
   cache_dir: runs/jev/teacher-cache
 drift:
-  eval_window: 64
-  min_windows: 3
-  loss_ratio: 2.0
+  # Self-supervised pairs vary hugely in difficulty, so the collapse guard uses
+  # 256-record window means and requires five consecutive degraded windows; a
+  # single hard batch can no longer trip a reset.
+  eval_window: 256
+  min_windows: 5
+  # Self-supervised pair loss tracks corpus difficulty, not degradation, so the
+  # loss ratio is advisory only; only non-finite weights/gradients or invalid
+  # output reset the adapter (operator decision for the 205M model).
+  loss_ratio: 1000000.0
   loss_margin: 0.0
   ema_norm_ratio: 3.0
   max_non_finite: 0
@@ -119,8 +125,12 @@ runtime:
   ema_decay: 0.999
   learning_rate: 0.0001
   grad_clip_norm: 1.0
-  publish_every_steps: 5
-  checkpoint_every_steps: 10
+  # Generations are published by consumed-record count (ZENJEV_PUBLISH_RECORDS,
+  # default 10000) in zenjev_loop; the step cadence is effectively disabled so
+  # the generation:records ratio stays exact. Checkpoints follow the same
+  # interval (train_batch 4 x 2500 steps = 10000 records).
+  publish_every_steps: 1000000000
+  checkpoint_every_steps: 2500
   max_checkpoints: 5
   reset_warmup_steps: 2
   seed: 42

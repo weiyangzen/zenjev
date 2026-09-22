@@ -71,6 +71,11 @@ PAIRS_PATH = PERPETUAL_RUNS / "pairs.jsonl"
 PAIRS_MAX_BYTES = 512 * 1024 * 1024
 
 
+def should_publish(consumed: int, records_at_last_publish: int, interval: int) -> bool:
+    """One generation per `interval` newly consumed records."""
+    return interval > 0 and consumed - records_at_last_publish >= interval
+
+
 def _batched_loss(model: Any, config: Any, pairs: list[tuple[str, dict[str, Any]]]) -> Any:
     """One optimizer step over a micro-batch; per-example fallback on failure."""
     try:
@@ -191,6 +196,10 @@ class Runtime:
         self.config = config
         self.admission = os.environ.get("ZENJEV_FABRICATOR_ADMISSION", "inference_only")
         self.batch_size = max(1, int(os.environ.get("ZENJEV_TRAIN_BATCH", "4")))
+        # One LoRA generation per consumed-record interval, independent of the
+        # optimizer step cadence, so the generation:records ratio is exact.
+        self.publish_records = max(1, int(os.environ.get("ZENJEV_PUBLISH_RECORDS", "10000")))
+        self.records_at_last_publish = 0
         self.batch_buffer: list[tuple[str, dict[str, Any]]] = []
         if self.admission not in ("inference_only", "canary_scored", "training_admitted"):
             raise SystemExit("invalid ZENJEV_FABRICATOR_ADMISSION")
@@ -206,7 +215,28 @@ class Runtime:
         self.loss_window: collections.deque[float] = collections.deque(maxlen=200)
         self.started = time.time()
 
+        # Generation ids and counters are global and monotonic across restarts.
+        # The ledger scan happens before anything is constructed; the runtime
+        # counter is seeded after JevRuntime exists but before the trainer's
+        # resume publish, so a restart continues the lineage instead of rolling
+        # it back or consuming a fresh id.
+        ledger_max = 0
+        pairs_built_max = 0
+        pairs_trained_max = 0
+        for row in tail_jsonl(LEDGER_PATH, 5000):
+            try:
+                ledger_max = max(ledger_max, int(row.get("generation_id", 0)))
+                pairs_built_max = max(pairs_built_max, int(row.get("pairs_built_total") or 0))
+                pairs_trained_max = max(pairs_trained_max, int(row.get("pairs_trained_total") or 0))
+            except (TypeError, ValueError):
+                continue
+        last = tail_jsonl(LEDGER_PATH, 1)
+
         self.runtime = JevRuntime(config)
+        if ledger_max:
+            # The resume publish re-publishes the resumed snapshot; land exactly
+            # on the ledger maximum so a restart never consumes a new id.
+            self.runtime.stats.model_generation = max(0, ledger_max - 1)
         resume = CHECKPOINT_DIR / "latest.pt"
         self.trainer = ContinuousLoRATrainer(
             config,
@@ -215,26 +245,15 @@ class Runtime:
             resume_from=resume if resume.exists() else None,
             resume_config_drift=True,
         )
-        # Generation ids are global and monotonic across restarts: resume the
-        # counter from the durable ledger before anything publishes again.
-        ledger_max = 0
-        for row in tail_jsonl(LEDGER_PATH, 5000):
-            try:
-                ledger_max = max(ledger_max, int(row.get("generation_id", 0)))
-            except (TypeError, ValueError):
-                continue
-        if ledger_max:
-            self.runtime.stats.model_generation = ledger_max
-            last = tail_jsonl(LEDGER_PATH, 1)
-            if last:
-                # Consumed-record counters are cumulative across restarts so the
-                # console never appears to lose training data on a restart.
-                self.counters["real_pairs"] = int(last[-1].get("records_consumed_total") or 0)
-                self.counters["training_examples"] = int(last[-1].get("training_examples_total") or 0)
-            self.runtime.publish(
-                self.trainer.model,
-                dict(self.runtime.ema.values),
-                ema_step=self.runtime.ema.updates,
+        if last:
+            self.counters["real_pairs"] = int(last[-1].get("records_consumed_total") or 0)
+            self.counters["training_examples"] = int(last[-1].get("training_examples_total") or 0)
+            self.counters["pairs_built"] = pairs_built_max
+            self.counters["pairs_trained"] = pairs_trained_max
+            self.records_at_last_publish = int(
+                last[-1].get("next_publish_at")
+                or last[-1].get("records_consumed_total")
+                or 0
             )
 
         original_save = self.trainer.save_checkpoint
@@ -324,6 +343,8 @@ class Runtime:
             return
         self.last_record_at = time.time()
         self.counters["synthetic_pairs" if synthetic else "real_pairs"] += 1
+        if not synthetic:
+            self._maybe_publish()
 
         import torch
 
@@ -455,6 +476,29 @@ class Runtime:
                 return False
         return True
 
+    def _maybe_publish(self) -> None:
+        consumed = int(self.counters["real_pairs"])
+        if not should_publish(consumed, self.records_at_last_publish, self.publish_records):
+            return
+        checkpoint = CHECKPOINT_DIR / "latest.pt"
+        try:
+            self.runtime.publish(
+                self.trainer.model,
+                dict(self.runtime.ema.values),
+                ema_step=self.runtime.ema.updates,
+                checkpoint=str(checkpoint) if checkpoint.exists() else None,
+            )
+            self.records_at_last_publish = consumed
+            self.counters["generation_publishes"] += 1
+            try:
+                import torch
+
+                torch.cuda.empty_cache()
+            except Exception:
+                pass
+        except Exception:
+            self.counters["publish_failed"] += 1
+
     def _append_pair(self, pair: dict[str, Any], request_text: str) -> None:
         try:
             import os as _os
@@ -496,6 +540,8 @@ class Runtime:
                     "reset_id": int(self.runtime.stats.reset_id),
                     "records_consumed_total": int(self.counters["real_pairs"]),
                     "training_examples_total": int(self.counters["training_examples"]),
+                    "pairs_built_total": int(self.counters["pairs_built"]),
+                    "pairs_trained_total": int(self.counters["pairs_trained"]),
                     "train_batch": self.batch_size,
                     "instruction_sha16": INSTRUCTION_SHA16,
                     "pairs_built": int(self.counters["pairs_built"]),

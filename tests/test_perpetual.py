@@ -212,3 +212,13 @@ def test_shape_pair_target_rejects_empty_judgment(config):
 
     target = shape_pair_target(config, {}, {})
     assert target["entities"] == {} and target["classifications"] == []
+
+
+def test_publish_cadence_matches_record_interval():
+    from zenjev_loop import should_publish
+
+    assert not should_publish(9_999, 0, 10_000)
+    assert should_publish(10_000, 0, 10_000)
+    assert not should_publish(20_001, 20_000, 10_000)
+    assert should_publish(30_000, 20_000, 10_000)
+    assert not should_publish(30_000, 20_000, 0)

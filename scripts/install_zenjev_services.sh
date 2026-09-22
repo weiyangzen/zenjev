@@ -39,7 +39,7 @@ EOF
 }
 
 write_unit "zenjev-feeder" "ZenJev raw dump feeder (perpetual dir-spool producer)" \
-  "$PYTHON $REPO/scripts/zenjev_feeder.py --max-records 10 --tick-sleep 2.0"
+  "$PYTHON $REPO/scripts/zenjev_feeder.py --max-records 40 --tick-sleep 0.5"
 write_unit "zenjev-loop" "ZenJev perpetual MQ + RSI LoRA training + EMA inference loop" \
   "$PYTHON $REPO/scripts/zenjev_loop.py"
 write_unit "zenjev-fabricator" "ZenJev synthetic schema-task fabricator (canaries)" \
