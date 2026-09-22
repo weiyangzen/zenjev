@@ -252,8 +252,30 @@
 </main>
 <script>
 const $ = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
 const history = { rate: [], lat: [], loss: [] };
-let paused = false, filter = "all", lastGen = -1, pulse = 0, lastSeq = 0;
+let paused = false, filter = params.get("filter") || "all", lastGen = -1, pulse = 0, lastSeq = 0;
+if (params.get("shot")) {
+  // Screenshot mode: render the snapshot immediately and default to the
+  // synthetic-only feed so no operator data can appear in captures.
+  if (!params.get("filter")) { filter = "synthetic"; }
+  try {
+    const snapshotXhr = new XMLHttpRequest();
+    snapshotXhr.open("GET", "/api/snapshot", false);
+    snapshotXhr.send(null);
+    if (snapshotXhr.status === 200) {
+      const body = JSON.parse(snapshotXhr.responseText);
+      try {
+        const eventsXhr = new XMLHttpRequest();
+        eventsXhr.open("GET", "/api/events", false);
+        eventsXhr.send(null);
+        const events = JSON.parse(eventsXhr.responseText).items;
+        if (Array.isArray(events)) { body.events = events; }
+      } catch (error) { /* keep the snapshot tail */ }
+      applySnapshot(body);
+    }
+  } catch (error) { /* screenshot mode is best-effort */ }
+}
 const feed = $("feed");
 
 function fmt(n) { return n === null || n === undefined ? "—" : Number(n).toLocaleString(); }

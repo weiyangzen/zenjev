@@ -343,12 +343,27 @@ impl Source for DirSpoolSource {
                 }
             }
             if saturated {
+                self.persist_state()?;
+                // Round-robin: continue from the next file on the following
+                // call so a fast-growing file cannot starve its neighbours.
+                self.cursor = if self.entries.is_empty() {
+                    0
+                } else {
+                    (index + 1) % self.entries.len()
+                };
                 break 'files;
             }
             // Partial line, EOF, or a fully consumed file: move to the next
-            // file in this pass. The cursor resets on the next rescan, so a
-            // partial line is retried after `poll_interval_ms`.
-            self.cursor += 1;
+            // file for fairness, and stop this call after a full pass. The next
+            // call rescans once `scan_every` has elapsed, which is what retries
+            // a partial line and discovers new files. Wrapping the cursor to
+            // zero here would spin on the same partial line forever.
+            let next = index + 1;
+            if next >= self.entries.len() {
+                self.cursor = self.entries.len();
+            } else {
+                self.cursor = next;
+            }
         }
         if moved_without_delivery {
             self.persist_state()?;
@@ -540,6 +555,36 @@ mod tests {
         std::thread::sleep(Duration::from_millis(30));
         let batch = source.next(10).unwrap();
         assert_eq!(batch.len(), 2);
+        let _ = std::fs::remove_dir_all(&directory);
+    }
+
+    #[test]
+    fn files_rotate_so_a_fast_file_cannot_starve_others() {
+        let directory =
+            std::env::temp_dir().join(format!("jev-dirspool-fair-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(
+            directory.join("a.ndjson"),
+            "{\"n\":1}\n{\"n\":2}\n{\"n\":3}\n",
+        )
+        .unwrap();
+        std::fs::write(
+            directory.join("b.ndjson"),
+            "{\"n\":4}\n{\"n\":5}\n{\"n\":6}\n",
+        )
+        .unwrap();
+        let state = directory.join("state.json");
+        let mut source = DirSpoolSource::open(&config_for(&directory, &state)).unwrap();
+        let first = source.next(2).unwrap();
+        let second = source.next(2).unwrap();
+        assert_eq!(first.len(), 2);
+        assert_eq!(second.len(), 2);
+        assert_ne!(
+            first[0].id.split('-').nth(1),
+            second[0].id.split('-').nth(1),
+            "the second batch must come from the other file"
+        );
         let _ = std::fs::remove_dir_all(&directory);
     }
 

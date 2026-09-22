@@ -243,17 +243,18 @@ def make_handler(static_dir: pathlib.Path):
             self.wfile.write(body)
 
         def do_GET(self) -> None:  # noqa: N802 - http.server API
-            if self.path in ("/", "/index.html"):
+            path = self.path.split("?", 1)[0]
+            if path in ("/", "/index.html"):
                 self._file(static_dir / "index.html", "text/html; charset=utf-8")
-            elif self.path == "/api/snapshot":
+            elif path == "/api/snapshot":
                 self._json(200, cached_snapshot())
-            elif self.path == "/api/generations":
+            elif path == "/api/generations":
                 self._json(200, {"items": tail_jsonl(LEDGER_PATH, 200)})
-            elif self.path == "/api/events":
+            elif path == "/api/events":
                 self._json(200, {"items": tail_jsonl(EVENTS_PATH, 300)})
-            elif self.path == "/api/deploys":
+            elif path == "/api/deploys":
                 self._json(200, {"items": tail_jsonl(DEPLOYS_PATH, 100)})
-            elif self.path == "/events":
+            elif path == "/events":
                 self._sse()
             else:
                 self._json(404, {"error": "not_found"})

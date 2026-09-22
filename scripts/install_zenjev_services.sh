@@ -43,7 +43,7 @@ write_unit "zenjev-feeder" "ZenJev raw dump feeder (perpetual dir-spool producer
 write_unit "zenjev-loop" "ZenJev perpetual MQ + RSI LoRA training + EMA inference loop" \
   "$PYTHON $REPO/scripts/zenjev_loop.py"
 write_unit "zenjev-fabricator" "ZenJev synthetic schema-task fabricator (canaries)" \
-  "$PYTHON $REPO/scripts/zenjev_fabricator.py"
+  "$PYTHON $REPO/scripts/zenjev_fabricator.py --per-tick 2 --interval 2"
 write_unit "zenjev-serve" "ZenJev perpetual inference service (deployed LoRA, 0.0.0.0:8791)" \
   "$PYTHON $REPO/scripts/zenjev_serve.py"
 write_unit "zenjev-deploy" "ZenJev LoRA deploy gate (redeploy zenjev-serve on newer stable generations)" \
