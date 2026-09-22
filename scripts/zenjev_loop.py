@@ -62,9 +62,9 @@ JUDGE_CHARS = 1200
 # request is the input and the model-generated schema is the target. Raw
 # request/response text is never trained on directly.
 INSTRUCTION = (
-    "Extract the schema for this engineering request: task_type, decision_choice, "
-    "task_detail, tool, programming_language, framework, technology, model. "
-    "Return only schema fields grounded in the request."
+    "Extract the schema for this engineering trace: task_type, decision_choice, "
+    "task_detail, tool, programming_language, technology. "
+    "Return only schema fields grounded in the trace."
 )
 INSTRUCTION_SHA16 = __import__("hashlib").sha256(INSTRUCTION.encode("utf-8")).hexdigest()[:16]
 PAIRS_PATH = PERPETUAL_RUNS / "pairs.jsonl"

@@ -297,7 +297,8 @@ def resolve_tool_task(
                 if value.casefold() not in allowed_folded
             }
             if unknown:
-                reasons.append(f"{field_name}_not_allowlisted")
+                preview = ",".join(sorted(unknown)[:3])
+                reasons.append(f"{field_name}_not_allowlisted:{preview}")
     choices = _probability_choices(output, ("decision_choice", "decision_choices", "decision_route"))
     if choices and max(item["probability"] for item in choices) < policy.min_confidence:
         reasons.append("decision_confidence_below_threshold")

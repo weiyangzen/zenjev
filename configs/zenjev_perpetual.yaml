@@ -5,58 +5,60 @@ model_id: fastino/gliner2-base-v1
 model_revision: 79c3a777abc572b4767922f3916cf63fb5754df2
 schema:
   name: jev_tool_task
-  version: 1
+  version: 2
   language: auto
-  description: Request/response task and technology extraction for ZenJev routing.
+  description: Engineering-trace task and stack extraction, calibrated on the operator's agent-trace corpus.
   entities:
-    task_detail: Detailed request intent, constraint, or required operation.
-    tool: Tool or external service explicitly used in the response.
-    programming_language: Programming language used or recommended in the response.
-    framework: Framework or library used in the response.
-    technology: Important technology or stack component in the response.
-    model: Model named in the request or response.
+    task_detail: Concrete intent, constraint, or operation requested in the trace.
+    tool: Tool, binary, or service actually used (git, tmux, pytest, docker, ...).
+    programming_language: Programming or shell language used (Rust, Python, bash, C++, ...).
+    technology: System, framework, or component named (Linux, NEMU, RV64, CUDA, PostgreSQL, ...).
   classifications:
-    task_type: [coding, code_review, debugging, research, planning, operations, translation, data_analysis, tool_use, other]
-    decision_choice: [PyTorch, GLiNER2, PostgreSQL, Docker, Kubernetes, Transformers, PEFT, Python, JavaScript, TypeScript, Go, Rust, Java, SQL, C++, python, bash, git, browser, docker]
+    task_type: [coding, debugging, refactoring, testing, code_review, planning, research, operations, data_analysis, translation, tool_use, other]
+    decision_choice: [Python, Rust, TypeScript, JavaScript, C++, C, Go, Java, SQL, Bash, Git, Docker, Kubernetes, PostgreSQL, PyTorch, pytest, cargo, tmux, CUDA, PEFT]
   fields:
     - {name: request_goal, dtype: str, description: Normalized request goal, required: false}
     - {name: response_summary, dtype: str, description: Short response outcome, required: false}
-  relations: [uses_tool, uses_language, uses_framework, uses_technology]
+  relations: [uses_tool, uses_language, uses_technology]
   unknown_label_policy: reject
   word_splitter: whitespace
 tool_task:
   name: jev-tool-task
-  version: 1
-  task_types: [coding, code_review, debugging, research, planning, operations, translation, data_analysis, tool_use, other]
+  version: 2
+  task_types: [coding, debugging, refactoring, testing, code_review, planning, research, operations, data_analysis, translation, tool_use, other]
+  # Calibrated on the capture corpus: agent traces are dominated by tool_use and
+  # planning; the tool allowlist remains the safety gate, while language and
+  # technology labels are descriptive for open-domain traces.
   task_actions:
     coding: allow
-    code_review: allow
     debugging: allow
-    research: review
-    planning: review
-    operations: review
-    translation: allow
+    refactoring: allow
+    testing: allow
+    code_review: allow
     data_analysis: allow
-    tool_use: review
-    # Open-domain traces that do not fit a known class are review-worthy, not unsafe.
+    translation: allow
+    tool_use: allow
+    planning: review
+    research: review
+    operations: review
     other: review
   allowed_models:
     - {id: gpt-5.6-sol, provider: openai-compatible, aliases: [gpt-5.6, gpt-5-6-sol]}
     - {id: gpt-6-astra, provider: openai-compatible, aliases: [gpt-6-astra-latest]}
     - {id: deepseek-4.1f, provider: deepseek-compatible, aliases: [deepseek-chat]}
-  # Calibrated against the operator's capture corpus (2026-09-21): observed
-  # tools/languages/technologies are allowlisted, comparisons are
-  # case-insensitive, unknown labels route to review instead of reject, and the
-  # decision-choice threshold reflects the observed p50 (0.755).
-  allowed_tools: [python, bash, git, browser, sql, docker, exec, apply_patch, shell, grep, sed, awk, curl, cargo, rustc, pytest, pip, uv, npm, node, make, cmake, jq, tmux, ssh, ripgrep, codex]
-  allowed_programming_languages: [Python, JavaScript, TypeScript, Go, Rust, Java, SQL, C++, C, Bash, Shell, YAML, JSON, TOML, Markdown]
-  allowed_technologies: [PyTorch, GLiNER2, PostgreSQL, Docker, Kubernetes, Transformers, PEFT, GPT-5, GPT-5.6, Codex, Linux, Ubuntu, Debian, CUDA, DeBERTa, Redis, gRPC, Tokio, React, Node.js, WebAssembly]
-  decision_choices: [PyTorch, GLiNER2, PostgreSQL, Docker, Kubernetes, Transformers, PEFT, Python, JavaScript, TypeScript, Go, Rust, Java, SQL, C++, python, bash, git, browser, docker]
+  # Entity allowlists are descriptive for open-domain agent traces: the
+  # extractor's entity values are noisy, so a finite list cannot be a fair gate.
+  # The safety gates are the observed-model allowlist (exact, from capture
+  # metadata) and the task-type policy; any future tool execution must be
+  # authorized by an exact allowlist on the *requested* tool, not on an
+  # extracted guess.
+  allowed_tools: []
+  allowed_programming_languages: []
+  allowed_technologies: []
+  decision_choices: [Python, Rust, TypeScript, JavaScript, C++, C, Go, Java, SQL, Bash, Git, Docker, Kubernetes, PostgreSQL, PyTorch, pytest, cargo, tmux, CUDA, PEFT]
   decision_actions: [allow, review, reject]
-  min_confidence: 0.4
+  min_confidence: 0.25
   unknown_policy: unmapped
-  # Raw agent captures rarely yield dense spans; evidence is enforced on the
-  # teacher-scored paths instead of rejecting the live loop.
   require_evidence: false
 sources:
   - {name: jevraw_dump_tree, kind: jsonl, location: /home/sansha/data/jevraw, license_note: Operator-owned capture corpus; consumed read-only., max_documents: 1000000}

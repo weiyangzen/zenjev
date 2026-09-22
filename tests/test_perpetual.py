@@ -222,3 +222,17 @@ def test_publish_cadence_matches_record_interval():
     assert not should_publish(20_001, 20_000, 10_000)
     assert should_publish(30_000, 20_000, 10_000)
     assert not should_publish(30_000, 20_000, 0)
+
+
+def test_descriptive_entity_gates_allow_noisy_traces(config):
+    """Unknown entity values no longer block an otherwise clear allow."""
+    from jev.tool_task import resolve_tool_task
+
+    output = {
+        "task_type": {"label": "refactoring", "confidence": 0.8},
+        "entities": {"tool": [{"text": "worktree", "start": 0, "end": 8}]},
+        "decision_choice": {"label": "Rust", "confidence": 0.7},
+    }
+    decision = resolve_tool_task(output, config.tool_task, model_id="gpt-5.6-sol")
+    assert decision["action"] == "allow" and decision["allowed"] is True
+    assert not decision["reasons"]
