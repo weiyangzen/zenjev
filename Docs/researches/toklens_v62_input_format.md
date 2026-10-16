@@ -1,6 +1,6 @@
 # TokLens v6.2：GT / 训练 / 评估的输入输出格式说明
 
-**状态：** 格式规范 + 数据缺陷记录（v3 数据集现状；v3.1 修复进行中，见 §7）
+**状态：** 格式规范 + 数据缺陷记录（v3 现状；v3.1 修复 / v3.2 剔除两侧皆空进行中，见 §7–§8）
 **日期：** 2026-10-16
 **权威说明：** 本文件是研究/方案记录，描述 `toklens-v6.2-v3` 数据链路的实际格式与已知缺陷；不改变 `Docs/stage0_zenjev_blueprint.md` 的 checklist 状态。配套方案见 `toklens_qwen35_08b_v3_training_plan.md`。
 
@@ -127,9 +127,17 @@ RESPONSE:
   1. `label_client_full.py` 新增 `capture_bodies()`（字段回退），`process_one` 与 `build_dataset_v3.py` 改用之（原文件备份 `*.bak-20261016`）。
   2. `hpo/relabel_alt350.py`：同 teacher（同配置标注服务）、同 system、同约束 schema、同预算（quota 16,384 + backfill）只重标这 350 条 → `toklens_gt02/out/labels_v6.2_altfix.jsonl`；**原 GT 文件不改**。
   3. `hpo/build_dataset_v31.py` → `datasets/toklens-v6.2-v3.1/`：**split 成员与行序完全沿用 v3 `meta.jsonl`**（重跑分层切分会因 task_l1/request_mode 变化而整体洗牌）；其余 22,153 条与 v3 逐字节一致（构建时断言；抽样 632 条预检 0 差异），仅替换 350 条；`meta.jsonl` 增加 `altfix` 标记。
-- **使用口径**：进行中的 HPO 全部在 v3 上比较（各 trial 同受影响，排序不变）；最终训练使用 v3.1；最终报告同时给出 v3 / v3.1 val 与 test 的 exact。
+## 8. v3.2：剔除两侧皆空（HPO v2 与最终训练所用数据集）
 
-## 8. 代码与路径索引（38，容器 `qwen35-train`，`/workspace = ~/qwen35-0.8b`）
+- **定义**：v3.2 = v3.1 − 两侧皆空行（`request_mode == response_mode == empty`）；v3.1 未就绪时回退为 v3 − 全部两侧皆空行（含 350 条错标）。split 内行序保持不变。构建：`hpo/build_dataset_v32.py`，评估预编码：`hpo/build_eval_prompts_v32.py`；`eval_accuracy.py` 新增 `--ds` 指定数据集（默认仍为 v3）。
+- **规模**（以 v3.1 为基）：剔除 train 819 / val 16 / test 16 → **train 20,766 / val 443 / test 443**。
+- **为什么剔除**：
+  - 训练侧影响小：两侧皆空只占 train 行数 3.8%、训练 token 0.53%，同一输入的两种标签只在 `language` 上不同（other 505 / en 346）。
+  - 评估侧是纯噪声：基线 cosine run 在 v3 val 的 24 条两侧皆空上，step-625/750/1000/1625 均为 70.8%（输出多数标签），step-875 翻到少数标签降为 29.2%，使整体 exact 凭空下降约 2.2pp；而 HPO 各组比较的恰是数个 pp 的差距。
+  - 部署侧：两侧皆空的输入由规则直接处理，不经过模型。
+- **口径**：HPO v2 全部 trial、锚点（CD0625，v3 训练、v3.2 val 评分）与最终训练均使用 v3.2；最终报告同时给出 v3.2 与 v3 val/test 的 exact。
+
+## 9. 代码与路径索引（38，容器 `qwen35-train`，`/workspace = ~/qwen35-0.8b`）
 
 | 用途 | 路径 |
 |---|---|
@@ -137,5 +145,5 @@ RESPONSE:
 | 训练集构建 | `tools/toklens/build_dataset_v3.py` |
 | 评估预编码 | `tools/toklens/build_eval_prompts_v3.py` |
 | 约束解码评估（exact / pairing / field_acc / 逐样本） | `tools/toklens/eval_accuracy.py` |
-| 350 条重标 / v3.1 构建 | `hpo/relabel_alt350.py` / `hpo/build_dataset_v31.py` |
+| 350 条重标 / v3.1 构建 / v3.2 构建 | `hpo/relabel_alt350.py` / `hpo/build_dataset_v31.py` / `hpo/build_dataset_v32.py` |
 | Schema 资产 | `datasets/toklens-v6.2-v3/assets/`（`label_schema_v6.2.json`、`l2_children_v6.2.json`、`v6.2_tree.md`） |
