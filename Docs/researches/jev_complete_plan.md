@@ -117,7 +117,7 @@ constraints:
   reject_unverifiable_claims: true
 ```
 
-“2026 最佳技术栈”不是一个无条件的标签。应把年份、任务目标、约束和证据放入 Schema，输出每项 recommendation 的证据句/URL 和 `as_of` 日期；教师只从用户授权来源生成候选，不凭参数记忆补全。Schema 变更必须递增版本并重新生成/验证样本，旧 adapter 不自动用于新版本。
+“2026 最佳技术栈”不是一个无条件的标签。应把年份、任务目标、约束和证据放入 Schema，输出每项 recommendation 的证据句/URL 和 `as_of` 日期；教师只从用户授权来源生成候选，不凭参数记忆补全。Schema 变更必须递增版本并重新生成/验证样本，旧 adapter 不自动用于新版本。数据分布变化后 Schema 怎么跟着演进，见 `zenjev_rsi.md`（zenjev-rsi）。
 
 服务端在接受 Schema 时检查：唯一字段名、允许的类型、最大长度、枚举值、关系端点、语言与 splitter、prompt 模板版本以及来源允许列表。输出先通过 JSON Schema 验证，再做 span/证据存在性验证；无效样本进入 quarantine，不进入 replay buffer。
 
@@ -187,6 +187,8 @@ Stage 0 的实时输入可以持续来自用户配置的外部标准消息队列
 ## 6. LoRA 累计误差崩溃判定和重置
 
 “崩溃”必须依据 live/EMA candidate 相对于**冻结基线**和当前最佳 active 的指标，而非只看训练 loss。每次评测使用固定 holdout、canary 和最近窗口，报告 micro/macro F1、字段级 precision/recall、exact JSON validity、evidence grounding rate、ECE（或可靠性分箱）、拒答率、延迟和 adapter norm。
+
+数据里出现 Schema 没有的概念不属于崩溃，不触发 reset；那是 Schema 变旧，由 zenjev-rsi 的外层循环处理，见 `zenjev_rsi.md`。
 
 **Stage 0 的冻结判定以 `Docs/stage0_zenjev_blueprint.md` 为准**，研究文档不能覆盖它：
 
